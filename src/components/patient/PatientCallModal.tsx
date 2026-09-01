@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { SupportContact } from '../../types';
+import { NORTHEAST_IMAGES } from '../../assets/images';
 
 export const PatientCallModal: React.FC = () => {
   const {
@@ -81,7 +82,7 @@ export const PatientCallModal: React.FC = () => {
                 <img
                   src={
                     activeCallContact.photo_url ||
-                    '/src/assets/images/northeast_son_caregiver_1788273841141.jpg'
+                    NORTHEAST_IMAGES.son
                   }
                   alt={activeCallContact.name}
                   referrerPolicy="no-referrer"
@@ -135,7 +136,7 @@ export const PatientCallModal: React.FC = () => {
                     <img
                       src={
                         contact.photo_url ||
-                        '/src/assets/images/northeast_granddaughter_1788273863871.jpg'
+                        NORTHEAST_IMAGES.granddaughter
                       }
                       alt={contact.name}
                       referrerPolicy="no-referrer"

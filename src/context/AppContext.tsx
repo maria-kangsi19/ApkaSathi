@@ -13,13 +13,32 @@ import {
   CompanionSettings,
   ActivityType,
 } from '../types';
+import { INITIAL_APP_STATE } from '../data/seedData';
 
 export type AppMode = 'role_select' | 'patient' | 'caregiver';
 export type PatientScreen = 'home' | 'who_is_this' | 'sounds_of_home' | 'familiar_places' | 'cognitive_exercises' | 'session_end' | 'family_gallery' | 'reminders';
 export type CaregiverTab = 'dashboard' | 'media' | 'reminders' | 'activity_log' | 'support_circle' | 'settings';
 
+const LOCAL_STORAGE_KEY = 'aapka_saathi_app_state_v1';
+
+const getInitialLocalState = (): AppState => {
+  try {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Validate that it has the core patient data
+      if (parsed && parsed.patient && parsed.photos) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not read from local storage:', e);
+  }
+  return INITIAL_APP_STATE;
+};
+
 interface AppContextType {
-  state: AppState | null;
+  state: AppState;
   loading: boolean;
   error: string | null;
   appMode: AppMode;
@@ -95,8 +114,8 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AppState | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [state, setState] = useState<AppState>(getInitialLocalState);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [appMode, setAppMode] = useState<AppMode>('role_select');
   const [patientScreen, setPatientScreen] = useState<PatientScreen>('home');
@@ -105,18 +124,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [showCallModal, setShowCallModal] = useState<boolean>(false);
   const [selectedContactForCall, setSelectedContactForCall] = useState<SupportContact | null>(null);
 
+  // Sync state to local storage whenever it changes
+  useEffect(() => {
+    if (state) {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.warn('Failed to save state to localStorage:', e);
+      }
+    }
+  }, [state]);
+
   const refreshState = useCallback(async () => {
     try {
       const res = await fetch('/api/state');
-      if (!res.ok) throw new Error('Failed to load data from server');
-      const data = await res.json();
-      setState(data);
-      setError(null);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.patient) {
+          setState(data);
+          setError(null);
+        }
+      }
     } catch (err: any) {
-      console.error('State load error:', err);
-      setError(err.message || 'Could not connect to backend.');
-    } finally {
-      setLoading(false);
+      // Backend not running (e.g. static hosting on Vercel) - smoothly continue with client-side state
+      console.log('App running in local/standalone mode with authentic Northeast dataset.');
     }
   }, []);
 
@@ -174,40 +205,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Update caregiver profile
   const updateCaregiver = async (data: Partial<CaregiverUser>) => {
+    setState(prev => ({
+      ...prev,
+      caregiver: { ...prev.caregiver, ...data },
+    }));
+
     try {
-      const res = await fetch('/api/caregiver', {
+      await fetch('/api/caregiver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setState(prev => prev ? { ...prev, caregiver: updated } : null);
-      }
     } catch (err) {
-      console.error('Update caregiver error:', err);
+      // Handled locally
     }
   };
 
   // Update patient profile
   const updatePatient = async (data: Partial<PatientProfile>) => {
+    setState(prev => ({
+      ...prev,
+      patient: { ...prev.patient, ...data },
+    }));
+
     try {
-      const res = await fetch('/api/patient', {
+      await fetch('/api/patient', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setState(prev => prev ? { ...prev, patient: updated } : null);
-      }
     } catch (err) {
-      console.error('Update patient error:', err);
+      // Handled locally
     }
   };
 
   // Add photo
   const addPhoto = async (photo: Partial<FamilyPhoto>): Promise<FamilyPhoto | null> => {
+    const newPhoto: FamilyPhoto = {
+      id: `photo-${Date.now()}`,
+      patient_id: state.patient?.id || 'pt-1',
+      photo_url: photo.photo_url || '',
+      person_name: photo.person_name || 'Family Member',
+      relationship_label: photo.relationship_label || 'Family',
+      notes: photo.notes || '',
+      ...photo,
+    };
+
+    setState(prev => ({
+      ...prev,
+      photos: [newPhoto, ...(prev.photos || [])],
+    }));
+
     try {
       const res = await fetch('/api/photos', {
         method: 'POST',
@@ -216,32 +264,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (res.ok) {
         const created = await res.json();
-        setState(prev => prev ? { ...prev, photos: [created, ...(prev.photos || [])] } : null);
         return created;
       }
     } catch (err) {
-      console.error('Add photo error:', err);
+      // Return local object
     }
-    return null;
+    return newPhoto;
   };
 
   // Delete photo
   const deletePhoto = async (id: string) => {
+    setState(prev => ({
+      ...prev,
+      photos: (prev.photos || []).filter(p => p.id !== id),
+    }));
+
     try {
-      const res = await fetch(`/api/photos/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setState(prev => prev ? {
-          ...prev,
-          photos: (prev.photos || []).filter(p => p.id !== id),
-        } : null);
-      }
+      await fetch(`/api/photos/${id}`, { method: 'DELETE' });
     } catch (err) {
-      console.error('Delete photo error:', err);
+      // Handled locally
     }
   };
 
   // Add voice note
   const addVoiceNote = async (voiceNote: Partial<VoiceNote>): Promise<VoiceNote | null> => {
+    const newNote: VoiceNote = {
+      id: `vn-${Date.now()}`,
+      patient_id: state.patient?.id || 'pt-1',
+      label: voiceNote.label || 'Voice Note',
+      audio_url: voiceNote.audio_url || '',
+      duration_sec: voiceNote.duration_sec || 30,
+      speaker_name: voiceNote.speaker_name || 'Family Member',
+      transcript: voiceNote.transcript || '',
+      date_recorded: new Date().toISOString(),
+      ...voiceNote,
+    };
+
+    setState(prev => ({
+      ...prev,
+      voiceNotes: [newNote, ...(prev.voiceNotes || [])],
+    }));
+
     try {
       const res = await fetch('/api/voice-notes', {
         method: 'POST',
@@ -250,32 +313,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (res.ok) {
         const created = await res.json();
-        setState(prev => prev ? { ...prev, voiceNotes: [created, ...(prev.voiceNotes || [])] } : null);
         return created;
       }
     } catch (err) {
-      console.error('Add voice note error:', err);
+      // Handled locally
     }
-    return null;
+    return newNote;
   };
 
   // Delete voice note
   const deleteVoiceNote = async (id: string) => {
+    setState(prev => ({
+      ...prev,
+      voiceNotes: (prev.voiceNotes || []).filter(v => v.id !== id),
+    }));
+
     try {
-      const res = await fetch(`/api/voice-notes/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setState(prev => prev ? {
-          ...prev,
-          voiceNotes: (prev.voiceNotes || []).filter(v => v.id !== id),
-        } : null);
-      }
+      await fetch(`/api/voice-notes/${id}`, { method: 'DELETE' });
     } catch (err) {
-      console.error('Delete voice note error:', err);
+      // Handled locally
     }
   };
 
   // Add reminder
   const addReminder = async (reminder: Partial<Reminder>): Promise<Reminder | null> => {
+    const newRem: Reminder = {
+      id: `rem-${Date.now()}`,
+      patient_id: state.patient?.id || 'pt-1',
+      time: reminder.time || '10:00 AM',
+      label: reminder.label || 'Reminder',
+      type: reminder.type || 'routine',
+      completed_today: false,
+      notes: reminder.notes || '',
+      ...reminder,
+    };
+
+    setState(prev => ({
+      ...prev,
+      reminders: [...(prev.reminders || []), newRem],
+    }));
+
     try {
       const res = await fetch('/api/reminders', {
         method: 'POST',
@@ -284,63 +361,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (res.ok) {
         const created = await res.json();
-        setState(prev => prev ? { ...prev, reminders: [...(prev.reminders || []), created] } : null);
         return created;
       }
     } catch (err) {
-      console.error('Add reminder error:', err);
+      // Handled locally
     }
-    return null;
+    return newRem;
   };
 
   // Toggle reminder
   const toggleReminder = async (id: string) => {
-    // Optimistic update
+    let completedNow = false;
     setState(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        reminders: (prev.reminders || []).map(r => r.id === id ? {
-          ...r,
-          completed_today: !r.completed_today,
-          completed_at: !r.completed_today ? new Date().toISOString() : undefined,
-        } : r),
-      };
+      const updatedList = (prev.reminders || []).map(r => {
+        if (r.id === id) {
+          const nextVal = !r.completed_today;
+          if (nextVal) completedNow = true;
+          return {
+            ...r,
+            completed_today: nextVal,
+            completed_at: nextVal ? new Date().toISOString() : undefined,
+          };
+        }
+        return r;
+      });
+      return { ...prev, reminders: updatedList };
     });
 
+    if (completedNow) {
+      triggerCelebration();
+    }
+
     try {
-      const res = await fetch(`/api/reminders/${id}/toggle`, { method: 'PATCH' });
-      if (res.ok) {
-        const updated = await res.json();
-        if (updated.completed_today) {
-          triggerCelebration();
-        }
-      } else {
-        refreshState();
-      }
+      await fetch(`/api/reminders/${id}/toggle`, { method: 'PATCH' });
     } catch (err) {
-      console.error('Toggle reminder error:', err);
-      refreshState();
+      // Handled locally
     }
   };
 
   // Delete reminder
   const deleteReminder = async (id: string) => {
+    setState(prev => ({
+      ...prev,
+      reminders: (prev.reminders || []).filter(r => r.id !== id),
+    }));
+
     try {
-      const res = await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setState(prev => prev ? {
-          ...prev,
-          reminders: (prev.reminders || []).filter(r => r.id !== id),
-        } : null);
-      }
+      await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
     } catch (err) {
-      console.error('Delete reminder error:', err);
+      // Handled locally
     }
   };
 
   // Add support contact
   const addSupportContact = async (contact: Partial<SupportContact>): Promise<SupportContact | null> => {
+    const newContact: SupportContact = {
+      id: `sc-${Date.now()}`,
+      patient_id: state.patient?.id || 'pt-1',
+      name: contact.name || 'Contact',
+      phone: contact.phone || '',
+      role: contact.role || 'family',
+      photo_url: contact.photo_url || '',
+      is_primary: contact.is_primary || false,
+      notes: contact.notes || '',
+      ...contact,
+    };
+
+    setState(prev => ({
+      ...prev,
+      supportContacts: [...(prev.supportContacts || []), newContact],
+    }));
+
     try {
       const res = await fetch('/api/support-contacts', {
         method: 'POST',
@@ -349,27 +440,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (res.ok) {
         const created = await res.json();
-        setState(prev => prev ? { ...prev, supportContacts: [...(prev.supportContacts || []), created] } : null);
         return created;
       }
     } catch (err) {
-      console.error('Add support contact error:', err);
+      // Handled locally
     }
-    return null;
+    return newContact;
   };
 
   // Delete support contact
   const deleteSupportContact = async (id: string) => {
+    setState(prev => ({
+      ...prev,
+      supportContacts: (prev.supportContacts || []).filter(s => s.id !== id),
+    }));
+
     try {
-      const res = await fetch(`/api/support-contacts/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setState(prev => prev ? {
-          ...prev,
-          supportContacts: (prev.supportContacts || []).filter(s => s.id !== id),
-        } : null);
-      }
+      await fetch(`/api/support-contacts/${id}`, { method: 'DELETE' });
     } catch (err) {
-      console.error('Delete contact error:', err);
+      // Handled locally
     }
   };
 
@@ -381,48 +470,64 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     total_count: number;
     details?: any;
   }) => {
+    const newLog: ActivityLog = {
+      id: `log-${Date.now()}`,
+      patient_id: state.patient?.id || 'pt-1',
+      activity_type: log.activity_type,
+      timestamp: new Date().toISOString(),
+      positive_count: log.positive_count,
+      total_count: log.total_count,
+      descriptive_note: log.descriptive_note,
+      details: log.details,
+    };
+
+    setState(prev => ({
+      ...prev,
+      activityLogs: [newLog, ...(prev.activityLogs || [])],
+    }));
+
     try {
-      const res = await fetch('/api/activity-logs', {
+      await fetch('/api/activity-logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(log),
       });
-      if (res.ok) {
-        const created = await res.json();
-        setState(prev => prev ? { ...prev, activityLogs: [created, ...(prev.activityLogs || [])] } : null);
-      }
     } catch (err) {
-      console.error('Save activity log error:', err);
+      // Handled locally
     }
   };
 
   // Update Settings
   const updateSettings = async (settings: Partial<CompanionSettings>) => {
+    setState(prev => ({
+      ...prev,
+      settings: { ...prev.settings, ...settings },
+    }));
+
     try {
-      const res = await fetch('/api/settings', {
+      await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setState(prev => prev ? { ...prev, settings: updated } : null);
-      }
     } catch (err) {
-      console.error('Update settings error:', err);
+      // Handled locally
     }
   };
 
   // Reset seed data
   const resetSeedData = async () => {
     try {
-      const res = await fetch('/api/reset-seed', { method: 'POST' });
-      if (res.ok) {
-        const fresh = await res.json();
-        setState(fresh);
-      }
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    } catch (e) {
+      // ignore
+    }
+    setState(INITIAL_APP_STATE);
+
+    try {
+      await fetch('/api/reset-seed', { method: 'POST' });
     } catch (err) {
-      console.error('Reset seed error:', err);
+      // Handled locally
     }
   };
 
@@ -442,7 +547,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({
           person_name: params.person_name,
           relationship: params.relationship,
-          language: params.language || state?.patient?.preferred_language || 'English',
+          language: params.language || state.patient?.preferred_language || 'English',
           activity_type: params.activity_type,
           place_name: params.place_name,
           place_location: params.place_location,
@@ -450,12 +555,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (res.ok) {
         const data = await res.json();
-        return data.question;
+        if (data && data.question) return data.question;
       }
     } catch (err) {
-      console.error('AI question generation call error:', err);
+      // Use authentic regional fallback
     }
-    return `Do you recognize this warm smile of your ${params.relationship || 'family member'}, ${params.person_name || ''}?`;
+
+    if (params.place_name) {
+      return `Look at this peaceful scene of ${params.place_name}. Does it bring back memories of the misty hillside breezes?`;
+    }
+
+    const lang = (params.language || state.patient?.preferred_language || '').toLowerCase();
+    if (lang.includes('nagamese')) {
+      return `Ayo, etu sundor chehra kune asey? Apnar ${params.relationship || 'ghor manu'}, ${params.person_name || ''} ke yaad asey?`;
+    }
+    return `Look at this warm smile, Ayo. Do you recognize your ${params.relationship || 'loving family member'}, ${params.person_name || ''}?`;
   };
 
   // AI: Encouraging Feedback Generation
@@ -474,20 +588,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           is_correct: params.is_correct,
           correct_name: params.correct_name,
           relationship: params.relationship,
-          language: params.language || state?.patient?.preferred_language || 'English',
+          language: params.language || state.patient?.preferred_language || 'English',
           activity_type: params.activity_type,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        return data.feedback;
+        if (data && data.feedback) return data.feedback;
       }
     } catch (err) {
-      console.error('AI feedback generation call error:', err);
+      // Fallback
     }
+
+    const lang = (params.language || state.patient?.preferred_language || '').toLowerCase();
+    if (lang.includes('nagamese')) {
+      return params.is_correct
+        ? `Ekdom thik Ayo! Etu apnar ${params.relationship}, ${params.correct_name} asey. Bahut bhal laagishey!`
+        : `Etu apnar bhal pawa ${params.relationship}, ${params.correct_name} asey, juntu apnake sadai yaad karey.`;
+    }
+
     return params.is_correct
-      ? `Yes, absolutely! That is your wonderful ${params.relationship}, ${params.correct_name}.`
-      : `This is your loving ${params.relationship}, ${params.correct_name}, who loves you so dearly.`;
+      ? `Yes, wonderful Ayo! That is indeed your ${params.relationship}, ${params.correct_name}.`
+      : `This is your loving ${params.relationship}, ${params.correct_name}, who cherishes you so dearly.`;
   };
 
   // AI: Descriptive Summary Generation
@@ -506,18 +628,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           activity_type: params.activity_type,
           count: params.count,
           positive_count: params.positive_count,
-          patient_name: params.patient_name || state?.patient?.name || 'Ayo',
+          patient_name: params.patient_name || state.patient?.name || 'Ayo',
           patient_notes: params.patient_notes,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        return data.summary;
+        if (data && data.summary) return data.summary;
       }
     } catch (err) {
-      console.error('AI summary call error:', err);
+      // Fallback
     }
-    return `${params.patient_name} spent peaceful time looking at memories today and engaged comfortably with family moments.`;
+    return `${params.patient_name || 'Ayo'} spent peaceful time looking at memories today and engaged with heartwarming comfort throughout the session.`;
   };
 
   // AI: Multilingual Translation
@@ -530,10 +652,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       });
       if (res.ok) {
         const data = await res.json();
-        return data.translated_text || text;
+        if (data && data.translated_text) return data.translated_text;
       }
     } catch (err) {
-      console.error('Translation error:', err);
+      // Fallback to source
     }
     return text;
   };
@@ -592,3 +714,4 @@ export const useApp = () => {
   }
   return context;
 };
+

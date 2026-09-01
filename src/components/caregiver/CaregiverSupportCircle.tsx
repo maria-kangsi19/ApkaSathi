@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { SupportContact } from '../../types';
+import { NORTHEAST_IMAGES } from '../../assets/images';
 
 export const CaregiverSupportCircle: React.FC = () => {
   const { state, addSupportContact, deleteSupportContact } = useApp();
@@ -29,14 +30,14 @@ export const CaregiverSupportCircle: React.FC = () => {
       name: 'Dr. Jamir',
       role: 'doctor' as const,
       phone: '+91 98765 43210',
-      photoUrl: '/src/assets/images/northeast_doctor_1788273951193.jpg',
+      photoUrl: NORTHEAST_IMAGES.doctor,
       notes: 'Family Physician at Mokokchung District Hospital',
     },
     {
       name: 'Lipokla',
       role: 'asha_worker' as const,
       phone: '+91 94360 11223',
-      photoUrl: '/src/assets/images/northeast_asha_worker_1788273924498.jpg',
+      photoUrl: NORTHEAST_IMAGES.ashaWorker,
       notes: 'ASHA Health Worker, Ungma Village',
     },
   ];
@@ -49,7 +50,7 @@ export const CaregiverSupportCircle: React.FC = () => {
       name,
       role,
       phone,
-      photo_url: photoUrl || '/src/assets/images/northeast_granddaughter_1788273863871.jpg',
+      photo_url: photoUrl || NORTHEAST_IMAGES.granddaughter,
       notes,
     });
 

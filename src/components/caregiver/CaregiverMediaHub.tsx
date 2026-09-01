@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { FamilyPhoto, VoiceNote } from '../../types';
+import { NORTHEAST_IMAGES } from '../../assets/images';
 
 export const CaregiverMediaHub: React.FC = () => {
   const { state, addPhoto, deletePhoto, addVoiceNote, deleteVoiceNote, speakText } = useApp();
@@ -54,25 +55,25 @@ export const CaregiverMediaHub: React.FC = () => {
     {
       name: 'Moa',
       relationship: 'Son (Primary Caregiver)',
-      url: '/src/assets/images/northeast_son_caregiver_1788273841141.jpg',
+      url: NORTHEAST_IMAGES.son,
       notes: 'Moa smiling at the harvest festival wearing traditional Naga shawl',
     },
     {
       name: 'Sentila',
       relationship: 'Granddaughter',
-      url: '/src/assets/images/northeast_granddaughter_1788273863871.jpg',
+      url: NORTHEAST_IMAGES.granddaughter,
       notes: 'Sentila in school uniform with her prize drawing',
     },
     {
       name: 'Lipokla',
       relationship: 'ASHA Health Worker & Friend',
-      url: '/src/assets/images/northeast_asha_worker_1788273924498.jpg',
+      url: NORTHEAST_IMAGES.ashaWorker,
       notes: 'Lipokla visiting with warm herbal tea and blood pressure cuff',
     },
     {
       name: 'Imti Longchar',
       relationship: 'Younger Brother',
-      url: '/src/assets/images/northeast_brother_uncle_1788273884571.jpg',
+      url: NORTHEAST_IMAGES.brother,
       notes: 'Imti bringing fresh garden harvest and bamboo shoot pickles',
     },
   ];

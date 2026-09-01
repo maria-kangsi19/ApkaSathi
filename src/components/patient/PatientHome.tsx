@@ -18,6 +18,7 @@ import {
   Flower2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { NORTHEAST_IMAGES } from '../../assets/images';
 
 export const PatientHome: React.FC = () => {
   const {
@@ -58,7 +59,7 @@ export const PatientHome: React.FC = () => {
         <div className="relative shrink-0">
           <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-[28px] overflow-hidden border-4 border-[#6E3B00] dark:border-[#F7C04D] shrink-0 bg-black/5 shadow-md">
             <img
-              src={patient?.profile_photo_url || '/src/assets/images/northeast_elderly_grandmother_1788273820405.jpg'}
+              src={patient?.profile_photo_url || NORTHEAST_IMAGES.grandmother}
               alt={patient?.name || 'Ayo'}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"

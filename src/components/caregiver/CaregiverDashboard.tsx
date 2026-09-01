@@ -19,6 +19,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { useApp, CaregiverTab } from '../../context/AppContext';
+import { NORTHEAST_IMAGES } from '../../assets/images';
 
 export const CaregiverDashboard: React.FC = () => {
   const {
@@ -50,7 +51,7 @@ export const CaregiverDashboard: React.FC = () => {
             <img
               src={
                 patient?.profile_photo_url ||
-                '/src/assets/images/northeast_elderly_grandmother_1788273820405.jpg'
+                NORTHEAST_IMAGES.grandmother
               }
               alt={patient?.name || 'Patient'}
               referrerPolicy="no-referrer"
