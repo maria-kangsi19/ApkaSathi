@@ -1,0 +1,268 @@
+{
+  "caregiver": {
+    "id": "cg-1",
+    "name": "Moa Jamir",
+    "phone_number": "+91 98621 54321",
+    "relationship_to_patient": "Son / Primary Caregiver"
+  },
+  "patient": {
+    "id": "pt-1",
+    "caregiver_id": "cg-1",
+    "name": "Arenla Ao",
+    "nickname": "Ayo (Grandmother)",
+    "age": 76,
+    "profile_photo_url": "/src/assets/images/northeast_elderly_grandmother_1788273820405.jpg",
+    "community": "Naga",
+    "preferred_language": "Nagamese / English",
+    "hometown": "Mokokchung, Nagaland",
+    "caregiver_notes": "Loves traditional Naga folk melodies, enjoys sitting by the veranda looking at the orchids. Speaks Nagamese and English."
+  },
+  "photos": [
+    {
+      "id": "photo-1",
+      "patient_id": "pt-1",
+      "photo_url": "/src/assets/images/northeast_son_caregiver_1788273841141.jpg",
+      "person_name": "Moa",
+      "relationship_label": "Your loving son",
+      "notes": "Moa who brings you morning Assam tea and fresh oranges.",
+      "audio_url": "",
+      "is_preset": true
+    },
+    {
+      "id": "photo-2",
+      "patient_id": "pt-1",
+      "photo_url": "/src/assets/images/northeast_granddaughter_1788273863871.jpg",
+      "person_name": "Sentila",
+      "relationship_label": "Your granddaughter",
+      "notes": "Sentila who studies in Dimapur and loves singing hymns with you.",
+      "audio_url": "",
+      "is_preset": true
+    },
+    {
+      "id": "photo-3",
+      "patient_id": "pt-1",
+      "photo_url": "/src/assets/images/northeast_brother_uncle_1788273884571.jpg",
+      "person_name": "Imti Longchar",
+      "relationship_label": "Your younger brother",
+      "notes": "Imti from Ungma village who always brings bamboo shoot pickles.",
+      "audio_url": "",
+      "is_preset": true
+    },
+    {
+      "id": "photo-4",
+      "patient_id": "pt-1",
+      "photo_url": "/src/assets/images/northeast_daughter_in_law_1788273903280.jpg",
+      "person_name": "Aienla",
+      "relationship_label": "Your daughter-in-law",
+      "notes": "Aienla who weaves lovely traditional shawls and cooks your favourite stew.",
+      "audio_url": "",
+      "is_preset": true
+    }
+  ],
+  "voiceNotes": [
+    {
+      "id": "vn-1",
+      "patient_id": "pt-1",
+      "audio_url": "",
+      "label": "Morning Greeting from Sentila",
+      "speaker_name": "Sentila (Granddaughter)",
+      "transcript": "Good morning Ayo! May your day be blessed with sunshine and sweet tea. I love you!",
+      "duration_sec": 12,
+      "date_recorded": "2026-09-01T14:02:49.318Z"
+    },
+    {
+      "id": "vn-2",
+      "patient_id": "pt-1",
+      "audio_url": "",
+      "label": "Village Church Hymn Melody",
+      "speaker_name": "Moa (Son)",
+      "transcript": "Singing gentle hills hymn: \"How great Thou art\" hummed warmly.",
+      "duration_sec": 24,
+      "date_recorded": "2026-09-01T14:02:49.319Z"
+    },
+    {
+      "id": "vn-3",
+      "patient_id": "pt-1",
+      "audio_url": "",
+      "label": "Tea Time Reminder & Laughter",
+      "speaker_name": "Aienla (Daughter-in-law)",
+      "transcript": "Ayo, the kettle is whistling on the fire stove. Time for warm ginger tea!",
+      "duration_sec": 15,
+      "date_recorded": "2026-09-01T14:02:49.319Z"
+    }
+  ],
+  "reminders": [
+    {
+      "id": "rem-1",
+      "patient_id": "pt-1",
+      "type": "meal",
+      "time": "08:00 AM",
+      "label": "Morning Warm Tea & Rice Cake",
+      "completed_today": true,
+      "notes": "Loves Lal Cha with a pinch of cardamom and warm steamed rice cake.",
+      "completed_at": "2026-09-01T14:02:49.319Z"
+    },
+    {
+      "id": "rem-2",
+      "patient_id": "pt-1",
+      "type": "medicine",
+      "time": "09:00 AM",
+      "label": "Morning Blood Pressure Tablet",
+      "completed_today": true,
+      "notes": "Small white pill after breakfast with half a glass of warm water.",
+      "completed_at": "2026-09-01T14:02:49.319Z"
+    },
+    {
+      "id": "rem-3",
+      "patient_id": "pt-1",
+      "type": "hydration",
+      "time": "11:30 AM",
+      "label": "Sip Fresh Water & Sit in Garden",
+      "completed_today": false,
+      "notes": "Gentle hydration while watching the green hills from veranda."
+    },
+    {
+      "id": "rem-4",
+      "patient_id": "pt-1",
+      "type": "routine",
+      "time": "04:30 PM",
+      "label": "Gentle Veranda Walk & Hymn Listening",
+      "completed_today": false,
+      "notes": "Walking 10 minutes near the potted orchids in the courtyard."
+    },
+    {
+      "id": "rem-5",
+      "patient_id": "pt-1",
+      "type": "medicine",
+      "time": "08:30 PM",
+      "label": "Night Calcium & Vitamin Tablet",
+      "completed_today": false,
+      "notes": "Taken after evening dinner."
+    }
+  ],
+  "supportContacts": [
+    {
+      "id": "sc-1",
+      "patient_id": "pt-1",
+      "name": "Moa Jamir (Son)",
+      "phone": "+91 98621 54321",
+      "role": "family",
+      "photo_url": "/src/assets/images/northeast_son_caregiver_1788273841141.jpg",
+      "is_primary": true,
+      "notes": "Lives in the same house. First person to call."
+    },
+    {
+      "id": "sc-2",
+      "patient_id": "pt-1",
+      "name": "Lipokla (ASHA Worker)",
+      "phone": "+91 94360 12890",
+      "role": "community health worker",
+      "photo_url": "/src/assets/images/northeast_asha_worker_1788273924498.jpg",
+      "is_primary": false,
+      "notes": "Visits every Tuesday for routine vitals and friendly chat."
+    },
+    {
+      "id": "sc-3",
+      "patient_id": "pt-1",
+      "name": "Sentila (Granddaughter)",
+      "phone": "+91 97740 98123",
+      "role": "family",
+      "photo_url": "/src/assets/images/northeast_granddaughter_1788273863871.jpg",
+      "is_primary": false,
+      "notes": "Available on video calls and phone every afternoon."
+    },
+    {
+      "id": "sc-4",
+      "patient_id": "pt-1",
+      "name": "Dr. T. Jamir (Family Doctor)",
+      "phone": "+91 94360 55432",
+      "role": "doctor",
+      "photo_url": "/src/assets/images/northeast_doctor_1788273951193.jpg",
+      "is_primary": false,
+      "notes": "District Hospital Mokokchung Clinic."
+    }
+  ],
+  "activityLogs": [
+    {
+      "id": "log-1788273662422-85pf",
+      "patient_id": "pt-1",
+      "activity_type": "who_is_this",
+      "timestamp": "2026-09-01T14:41:02.422Z",
+      "descriptive_note": "Arenla Ao spent comfortable time with family photo recognition today, enjoying moments with family memories.",
+      "positive_count": 3,
+      "total_count": 4,
+      "details": {
+        "items_shown": [
+          "Moa",
+          "Sentila",
+          "Imti Longchar",
+          "Aienla"
+        ]
+      }
+    },
+    {
+      "id": "log-1",
+      "patient_id": "pt-1",
+      "activity_type": "who_is_this",
+      "timestamp": "2026-09-01T11:02:49.319Z",
+      "descriptive_note": "Arenla warmly recognized photos of Moa and Sentila, smiling gently when talking about village memories.",
+      "positive_count": 3,
+      "total_count": 4
+    },
+    {
+      "id": "log-2",
+      "patient_id": "pt-1",
+      "activity_type": "sounds_of_home",
+      "timestamp": "2026-08-31T14:02:49.319Z",
+      "descriptive_note": "Listened attentively to the church hymn voice note and hummed along with a peaceful expression.",
+      "positive_count": 2,
+      "total_count": 2
+    }
+  ],
+  "familiarPlaces": [
+    {
+      "id": "fp-1",
+      "patient_id": "pt-1",
+      "name": "Mokokchung Town & Hills",
+      "location": "Mokokchung, Nagaland",
+      "photo_url": "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&w=600&q=80",
+      "prompt_clue": "The misty blue hills where the morning roosters call across the pine trees.",
+      "memory_fact": "Where the family home has stood for over forty years."
+    },
+    {
+      "id": "fp-2",
+      "patient_id": "pt-1",
+      "name": "Village Baptist Church",
+      "location": "Ungma Village",
+      "photo_url": "https://images.unsplash.com/photo-1548625361-195feee8233f?auto=format&fit=crop&w=600&q=80",
+      "prompt_clue": "The wooden church with the white steeple where Sunday hymns fill the morning air.",
+      "memory_fact": "Where you loved singing in the choir during Easter and Christmas."
+    },
+    {
+      "id": "fp-3",
+      "patient_id": "pt-1",
+      "name": "The Veranda & Orchid Garden",
+      "location": "Family Home",
+      "photo_url": "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=600&q=80",
+      "prompt_clue": "The peaceful wooden porch with yellow wild orchids hanging in bamboo pots.",
+      "memory_fact": "Your favourite spot for enjoying warm ginger tea in the golden afternoon light."
+    },
+    {
+      "id": "fp-4",
+      "patient_id": "pt-1",
+      "name": "Dzukou Valley Flower Meadows",
+      "location": "Nagaland - Manipur border",
+      "photo_url": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80",
+      "prompt_clue": "The rolling emerald green valleys where wild lilies bloom under gentle clouds.",
+      "memory_fact": "A famous mountain valley visited with loved ones during harvest time."
+    }
+  ],
+  "settings": {
+    "pacing": "gentle_slow",
+    "twilightMode": false,
+    "speakAudio": false,
+    "language": "Nagamese / English",
+    "manualTiredMode": true,
+    "soundEffects": true
+  }
+}

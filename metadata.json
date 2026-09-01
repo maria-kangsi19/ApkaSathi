@@ -1,0 +1,6 @@
+{
+  "name": "Aapka Saathi",
+  "description": "A cognitive engagement and daily-support companion app for elderly dementia patients and their family/caregivers.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
