@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { ActivityLog } from '../../types';
+import { PatientConditionEngagementVisualizer } from './PatientConditionEngagementVisualizer';
 
 export const CaregiverActivityLog: React.FC = () => {
   const { state, setShowDisclaimerModal } = useApp();
@@ -91,6 +92,9 @@ export const CaregiverActivityLog: React.FC = () => {
           View Notice Details →
         </button>
       </div>
+
+      {/* PATIENT CONDITION & DAILY ENGAGEMENT GRAPH */}
+      <PatientConditionEngagementVisualizer />
 
       {/* Logs Timeline */}
       {filteredLogs.length === 0 ? (

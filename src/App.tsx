@@ -5,6 +5,8 @@ import { RoleSelectionScreen } from './components/common/RoleSelectionScreen';
 import { DisclaimerModal } from './components/common/DisclaimerModal';
 import { CaregiverHubLayout } from './components/caregiver/CaregiverHubLayout';
 import { PatientContainer } from './components/patient/PatientContainer';
+import { PatientMedicineAlarmModal } from './components/patient/PatientMedicineAlarmModal';
+import { PatientSOSModal } from './components/patient/PatientSOSModal';
 import { RefreshCw, Heart } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -46,6 +48,10 @@ const AppContent: React.FC = () => {
           {appMode === 'caregiver' && <CaregiverHubLayout />}
         </main>
       </div>
+
+      {/* Global Modals for Medicine Alarms and SOS Alerts */}
+      <PatientMedicineAlarmModal />
+      <PatientSOSModal />
 
       {/* Global Non-Clinical Disclaimer Modal */}
       <DisclaimerModal />

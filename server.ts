@@ -278,6 +278,54 @@ const INITIAL_SEED_DATA = {
     manualTiredMode: false,
     soundEffects: true,
   },
+  medicines: [
+    {
+      id: 'med-1',
+      patient_id: 'pt-1',
+      name: 'Amlodipine (Blood Pressure)',
+      dosage: '5mg — 1 tablet',
+      times: ['08:00 AM'],
+      notes: 'Take with warm water after morning meal',
+      active: true,
+    },
+    {
+      id: 'med-2',
+      patient_id: 'pt-1',
+      name: 'Calcium + Vitamin D3',
+      dosage: '500mg — 1 tablet',
+      times: ['01:30 PM'],
+      notes: 'Take after lunch with lukewarm water',
+      active: true,
+    },
+    {
+      id: 'med-3',
+      patient_id: 'pt-1',
+      name: 'Donepezil (Memory Support)',
+      dosage: '5mg — 1 tablet',
+      times: ['08:30 PM'],
+      notes: 'Take right before bedtime with half glass of water',
+      active: true,
+    },
+  ],
+  medicineLogs: [
+    {
+      id: 'medlog-1',
+      medicine_id: 'med-1',
+      scheduled_time: '08:00 AM',
+      status: 'taken',
+      actioned_at: new Date().toISOString(),
+    },
+  ],
+  sosEvents: [
+    {
+      id: 'sos-prev-1',
+      patient_id: 'pt-1',
+      triggered_at: new Date(Date.now() - 3600000 * 42).toISOString(),
+      status: 'resolved',
+      resolved_at: new Date(Date.now() - 3600000 * 42 + 240000).toISOString(),
+      location: 'Veranda & Orchid Courtyard, Mokokchung',
+    },
+  ],
 };
 
 // Database helper functions
@@ -552,6 +600,157 @@ async function startServer() {
       db.settings = { ...db.settings, ...req.body };
       await saveDb(db);
       res.json(db.settings);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // MEDICINE SCHEDULE & LOGS ENDPOINTS
+  // ==========================================
+
+  // Get medicines
+  app.get('/api/medicines', async (req, res) => {
+    try {
+      const db = await loadDb();
+      res.json(db.medicines || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Add Medicine
+  app.post('/api/medicines', async (req, res) => {
+    try {
+      const db = await loadDb();
+      const newMedicine = {
+        id: `med-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        patient_id: db.patient?.id || 'pt-1',
+        name: req.body.name || 'Medicine',
+        dosage: req.body.dosage || '1 tablet',
+        times: Array.isArray(req.body.times) && req.body.times.length > 0 ? req.body.times : ['08:00 AM'],
+        notes: req.body.notes || '',
+        active: req.body.active !== undefined ? !!req.body.active : true,
+      };
+      db.medicines = [...(db.medicines || []), newMedicine];
+      await saveDb(db);
+      res.json(newMedicine);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Update Medicine
+  app.put('/api/medicines/:id', async (req, res) => {
+    try {
+      const db = await loadDb();
+      const medIndex = (db.medicines || []).findIndex((m: any) => m.id === req.params.id);
+      if (medIndex === -1) {
+        return res.status(404).json({ error: 'Medicine not found' });
+      }
+      db.medicines[medIndex] = {
+        ...db.medicines[medIndex],
+        ...req.body,
+        id: req.params.id,
+      };
+      await saveDb(db);
+      res.json(db.medicines[medIndex]);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Delete Medicine
+  app.delete('/api/medicines/:id', async (req, res) => {
+    try {
+      const db = await loadDb();
+      db.medicines = (db.medicines || []).filter((m: any) => m.id !== req.params.id);
+      await saveDb(db);
+      res.json({ success: true, id: req.params.id });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Get Medicine Logs
+  app.get('/api/medicine-logs', async (req, res) => {
+    try {
+      const db = await loadDb();
+      res.json(db.medicineLogs || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Add or Update Medicine Log
+  app.post('/api/medicine-logs', async (req, res) => {
+    try {
+      const db = await loadDb();
+      const { medicine_id, scheduled_time, status, actioned_at } = req.body;
+      const newLog = {
+        id: `medlog-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        medicine_id,
+        scheduled_time,
+        status: status || 'taken',
+        actioned_at: actioned_at || new Date().toISOString(),
+      };
+      db.medicineLogs = [newLog, ...(db.medicineLogs || [])];
+      await saveDb(db);
+      res.json(newLog);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // PATIENT SOS ALERT ENDPOINTS
+  // ==========================================
+
+  // Get SOS Events
+  app.get('/api/sos-events', async (req, res) => {
+    try {
+      const db = await loadDb();
+      res.json(db.sosEvents || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Trigger SOS Event
+  app.post('/api/sos-events', async (req, res) => {
+    try {
+      const db = await loadDb();
+      const newEvent = {
+        id: `sos-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        patient_id: db.patient?.id || 'pt-1',
+        triggered_at: new Date().toISOString(),
+        status: 'active',
+        resolved_at: null,
+        location: req.body.location || 'Ungma Road, Mokokchung, Nagaland',
+      };
+      db.sosEvents = [newEvent, ...(db.sosEvents || [])];
+      await saveDb(db);
+      res.json(newEvent);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Resolve SOS Event
+  app.patch('/api/sos-events/:id', async (req, res) => {
+    try {
+      const db = await loadDb();
+      const eventIndex = (db.sosEvents || []).findIndex((e: any) => e.id === req.params.id);
+      if (eventIndex === -1) {
+        return res.status(404).json({ error: 'SOS Event not found' });
+      }
+      db.sosEvents[eventIndex] = {
+        ...db.sosEvents[eventIndex],
+        status: 'resolved',
+        resolved_at: new Date().toISOString(),
+      };
+      await saveDb(db);
+      res.json(db.sosEvents[eventIndex]);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

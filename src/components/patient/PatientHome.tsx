@@ -7,6 +7,9 @@ import {
   CheckCircle2,
   PhoneCall,
   Sun,
+  Sunrise,
+  Sunset,
+  Moon,
   Volume2,
   Coffee,
   Heart,
@@ -16,6 +19,10 @@ import {
   Music,
   MapPin,
   Flower2,
+  Pill,
+  AlertTriangle,
+  ShieldAlert,
+  BellRing,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { NORTHEAST_IMAGES } from '../../assets/images';
@@ -27,10 +34,14 @@ export const PatientHome: React.FC = () => {
     setShowCallModal,
     speakText,
     toggleReminder,
+    setShowSOSConfirmModal,
+    triggerTestMedicineAlarm,
   } = useApp();
 
   const patient = state?.patient;
   const reminders = state?.reminders || [];
+  const medicines = state?.medicines || [];
+  const activeMedicines = medicines.filter((m) => m.active);
 
   // Greeting based on time of day
   const getGreeting = () => {
@@ -92,6 +103,67 @@ export const PatientHome: React.FC = () => {
             <span className="px-3.5 py-1.5 rounded-full bg-[#F0EADF] dark:bg-[#272A22] border border-[#BFB5A2] dark:border-[#4A4F41]">
               🗣️ {patient?.preferred_language || 'Nagamese / English'}
             </span>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Daily Sun & Peaceful Rhythm Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white dark:bg-[#1D1F1A] rounded-[32px] p-5 sm:p-6 border-2 border-[#DCD4C4] dark:border-[#3C4035] shadow-xs space-y-3"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sun className="w-5 h-5 text-[#F5B83D]" />
+            <h3 className="text-sm sm:text-base font-black text-[#141310] dark:text-[#FCFBF7]">
+              Today's Gentle Sun & Peaceful Moments
+            </h3>
+          </div>
+          <span className="text-xs font-black text-[#264D24] dark:text-[#9BB858] bg-[#E0EDE0] dark:bg-[#263319] px-3 py-1 rounded-full">
+            Comfort: 92% Serene 🌿
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="p-3 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+              <Sunrise className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-[10px] font-bold text-[#66635A] dark:text-[#8E8D85]">Morning</span>
+              <span className="text-xs font-black text-[#264D24] dark:text-[#9BB858]">Tea & Medicine ✓</span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+              <Flower2 className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-[10px] font-bold text-[#66635A] dark:text-[#8E8D85]">Midday</span>
+              <span className="text-xs font-black text-[#264D24] dark:text-[#9BB858]">Photo Smiles ✓</span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center shrink-0">
+              <Music className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-[10px] font-bold text-[#66635A] dark:text-[#8E8D85]">Afternoon</span>
+              <span className="text-xs font-black text-[#264D24] dark:text-[#9BB858]">Choir Hymns ✓</span>
+            </div>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center shrink-0">
+              <Sunset className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block text-[10px] font-bold text-[#66635A] dark:text-[#8E8D85]">Evening</span>
+              <span className="text-xs font-black text-[#D97706]">Twilight Rest 🌙</span>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -239,49 +311,97 @@ export const PatientHome: React.FC = () => {
 
         {/* Call For Help & Family Gallery Card */}
         <div className="flex flex-col justify-between gap-6">
-          {/* Big Call Button */}
-          <div
-            onClick={() => setShowCallModal(true)}
-            className="bg-red-50 dark:bg-red-950/40 text-red-950 dark:text-red-200 rounded-[36px] p-6 sm:p-8 border-2 border-red-300 dark:border-red-800 flex items-center justify-between shadow-lg btn-hover transition-all cursor-pointer"
+          {/* Coral/Red Patient SOS Alert Button */}
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowSOSConfirmModal(true)}
+            className="bg-[#D34537] hover:bg-[#C23C2F] text-white rounded-[36px] p-6 sm:p-8 border-4 border-[#9C271D] flex items-center justify-between shadow-xl cursor-pointer transition-all"
           >
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center text-white shadow-md shrink-0">
-                <PhoneCall className="w-8 h-8 animate-pulse" />
+              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white shadow-inner shrink-0 animate-pulse">
+                <ShieldAlert className="w-9 h-9 text-white" />
               </div>
               <div>
-                <h4 className="text-xl sm:text-2xl font-black uppercase tracking-tighter text-red-950 dark:text-red-100">
+                <div className="inline-block px-3 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider mb-1">
+                  Family Distress Alert
+                </div>
+                <h4 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white">
+                  SOS — Call for Help
+                </h4>
+                <p className="font-bold text-red-100 text-xs sm:text-sm mt-0.5">
+                  Press to notify your caregiver & family immediately
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-8 h-8 opacity-90 shrink-0 text-white" />
+          </motion.div>
+
+          {/* Daily Medicines Snapshot Card */}
+          <div className="bg-white dark:bg-[#1D1F1A] border-2 border-[#DCD4C4] dark:border-[#3C4035] rounded-[36px] p-6 sm:p-7 card-shadow flex flex-col justify-between gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#FAE4E1] text-[#9C382A] dark:bg-[#3D2321] dark:text-[#EA9688] flex items-center justify-center shrink-0">
+                  <Pill className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-[#141310] dark:text-[#FCFBF7]">
+                    Daily Medicines ({activeMedicines.length})
+                  </h4>
+                  <p className="text-xs text-[#66635A] dark:text-[#8E8D85] font-bold">
+                    Automatic alarms ring at scheduled times
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => triggerTestMedicineAlarm()}
+                className="px-3 py-1.5 rounded-full bg-[#FAE4E1] text-[#9C382A] dark:bg-[#3D2321] dark:text-[#EA9688] text-xs font-black hover:scale-105 transition-transform cursor-pointer flex items-center gap-1"
+                title="Test trigger alarm now"
+              >
+                <BellRing className="w-3.5 h-3.5" />
+                <span>Test Alarm ⚡</span>
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {activeMedicines.map((med) => (
+                <div
+                  key={med.id}
+                  className="px-3 py-1.5 rounded-xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] text-xs font-bold text-[#141310] dark:text-[#FCFBF7] flex items-center gap-1.5"
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#264D24]" />
+                  <span>{med.name} ({med.times[0]})</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Regular Contact Helpers Call Button */}
+          <div
+            onClick={() => setShowCallModal(true)}
+            className="bg-[#F3EFE6] dark:bg-[#272A22] text-[#141310] dark:text-[#FCFBF7] rounded-[36px] p-5 sm:p-6 border-2 border-[#BFB5A2] dark:border-[#4A4F41] flex items-center justify-between shadow-xs btn-hover transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-[#264D24] rounded-2xl flex items-center justify-center text-white shadow-xs shrink-0">
+                <PhoneCall className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-base sm:text-lg font-black text-[#141310] dark:text-[#FCFBF7]">
                   Call Loved Ones & Helpers
                 </h4>
-                <p className="font-bold text-red-800 dark:text-red-300 text-sm mt-0.5">
+                <p className="font-bold text-[#66635A] dark:text-[#8E8D85] text-xs mt-0.5">
                   One-touch call for family & health workers
                 </p>
               </div>
             </div>
-            <ChevronRight className="w-8 h-8 opacity-70 shrink-0 text-red-700 dark:text-red-300" />
+            <ChevronRight className="w-6 h-6 text-[#264D24] dark:text-[#9BB858] shrink-0" />
           </div>
 
-          {/* Family Gallery Launch Button */}
-          <motion.div
-            whileHover={{ y: -3 }}
-            onClick={() => setPatientScreen('family_gallery')}
-            className="bg-white dark:bg-[#1D1F1A] border-2 border-[#BFB5A2] dark:border-[#4A4F41] rounded-[36px] p-6 sm:p-7 card-shadow flex items-center justify-between cursor-pointer btn-hover transition-all"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-[#E0EDE0] dark:bg-[#263319] flex items-center justify-center text-[#143513] dark:text-[#9BB858] shrink-0">
-                <Users className="w-7 h-7" />
-              </div>
-              <div>
-                <h4 className="text-xl font-black uppercase tracking-tight text-[#000000] dark:text-[#FFFFFF]">Family Photo Album</h4>
-                <p className="text-xs font-bold text-[#121210] dark:text-[#F6F5EE] mt-0.5">Browse through loved ones with voice clips</p>
-              </div>
-            </div>
-            <ChevronRight className="w-6 h-6 text-[#143513] dark:text-[#9BB858]" />
-          </motion.div>
-
           {/* Gentle Comfort Footer Note */}
-          <div className="rounded-[32px] bg-[#F8E7C6] dark:bg-[#423015] border-2 border-[#6E3B00]/40 p-5 flex items-center gap-3">
-            <Heart className="w-6 h-6 text-[#6E3B00] dark:text-[#F7C04D] fill-current shrink-0" />
-            <p className="text-xs sm:text-sm text-[#542C00] dark:text-[#F8E7C6] font-bold leading-relaxed">
+          <div className="rounded-[32px] bg-[#F8E7C6] dark:bg-[#423015] border-2 border-[#6E3B00]/40 p-4 flex items-center gap-3">
+            <Heart className="w-5 h-5 text-[#6E3B00] dark:text-[#F7C04D] fill-current shrink-0" />
+            <p className="text-xs text-[#542C00] dark:text-[#F8E7C6] font-bold leading-relaxed">
               Take all the time you need. There is no rush or testing here. Everything is safe.
             </p>
           </div>

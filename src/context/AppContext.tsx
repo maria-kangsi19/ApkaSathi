@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import {
   AppState,
@@ -12,12 +12,30 @@ import {
   FamiliarPlace,
   CompanionSettings,
   ActivityType,
+  Medicine,
+  MedicineLog,
+  MedicineLogStatus,
+  SOSEvent,
+  SOSEventStatus,
+  ConditionCheckIn,
+  ConditionMood,
 } from '../types';
 import { INITIAL_APP_STATE } from '../data/seedData';
+import {
+  playMedicineAlarmChime,
+  playSOSAlertChime,
+  playSuccessChime,
+} from '../utils/audio';
 
 export type AppMode = 'role_select' | 'patient' | 'caregiver';
 export type PatientScreen = 'home' | 'who_is_this' | 'sounds_of_home' | 'familiar_places' | 'cognitive_exercises' | 'session_end' | 'family_gallery' | 'reminders';
-export type CaregiverTab = 'dashboard' | 'media' | 'reminders' | 'activity_log' | 'support_circle' | 'settings';
+export type CaregiverTab = 'dashboard' | 'medicines' | 'emergency_log' | 'media' | 'reminders' | 'activity_log' | 'support_circle' | 'settings';
+
+export interface MissedMedicineAlert {
+  medicine: Medicine;
+  scheduledTime: string;
+  delayMinutes: number;
+}
 
 const LOCAL_STORAGE_KEY = 'aapka_saathi_app_state_v1';
 
@@ -28,7 +46,17 @@ const getInitialLocalState = (): AppState => {
       const parsed = JSON.parse(saved);
       // Validate that it has the core patient data
       if (parsed && parsed.patient && parsed.photos) {
-        return parsed;
+        return {
+          ...INITIAL_APP_STATE,
+          ...parsed,
+          medicines: parsed.medicines || INITIAL_APP_STATE.medicines,
+          medicineLogs: parsed.medicineLogs || INITIAL_APP_STATE.medicineLogs,
+          sosEvents: parsed.sosEvents || INITIAL_APP_STATE.sosEvents,
+          conditionCheckIns:
+            parsed.conditionCheckIns && parsed.conditionCheckIns.length > 0
+              ? parsed.conditionCheckIns
+              : INITIAL_APP_STATE.conditionCheckIns || [],
+        };
       }
     }
   } catch (e) {
@@ -53,7 +81,30 @@ interface AppContextType {
   setShowCallModal: (show: boolean) => void;
   selectedContactForCall: SupportContact | null;
   setSelectedContactForCall: (contact: SupportContact | null) => void;
-  
+
+  // Medicine & SOS Alert States
+  activeMedicineAlarm: {
+    medicine: Medicine;
+    scheduledTime: string;
+    isTest?: boolean;
+  } | null;
+  setActiveMedicineAlarm: (alarm: {
+    medicine: Medicine;
+    scheduledTime: string;
+    isTest?: boolean;
+  } | null) => void;
+  triggerTestMedicineAlarm: (medicineId?: string) => void;
+  activeSOSAlertModal: boolean;
+  setActiveSOSAlertModal: (open: boolean) => void;
+  showSOSConfirmModal: boolean;
+  setShowSOSConfirmModal: (open: boolean) => void;
+  highlightedMedicineId: string | null;
+  setHighlightedMedicineId: (id: string | null) => void;
+
+  // Computed alerts
+  missedMedicineAlerts: MissedMedicineAlert[];
+  activeSOSEvents: SOSEvent[];
+
   // Data actions
   refreshState: () => Promise<void>;
   updateCaregiver: (data: Partial<CaregiverUser>) => Promise<void>;
@@ -67,12 +118,35 @@ interface AppContextType {
   deleteReminder: (id: string) => Promise<void>;
   addSupportContact: (contact: Partial<SupportContact>) => Promise<SupportContact | null>;
   deleteSupportContact: (id: string) => Promise<void>;
+
+  // Medicine actions
+  addMedicine: (medicine: Partial<Medicine>) => Promise<Medicine | null>;
+  updateMedicine: (id: string, updates: Partial<Medicine>) => Promise<Medicine | null>;
+  deleteMedicine: (id: string) => Promise<boolean>;
+  logMedicineAction: (
+    medicineId: string,
+    scheduledTime: string,
+    status: MedicineLogStatus
+  ) => Promise<MedicineLog | null>;
+
+  // SOS actions
+  triggerSOS: (location?: string) => Promise<SOSEvent | null>;
+  resolveSOSEvent: (id: string) => Promise<boolean>;
+
   saveActivityLog: (log: {
     activity_type: ActivityType;
     descriptive_note: string;
     positive_count: number;
     total_count: number;
     details?: any;
+  }) => Promise<void>;
+  addConditionCheckIn: (checkIn: {
+    condition_score: number;
+    engagement_score: number;
+    mood: ConditionMood;
+    notes: string;
+    activity_label?: string;
+    logged_by?: string;
   }) => Promise<void>;
   updateSettings: (settings: Partial<CompanionSettings>) => Promise<void>;
   resetSeedData: () => Promise<void>;
@@ -124,6 +198,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [showCallModal, setShowCallModal] = useState<boolean>(false);
   const [selectedContactForCall, setSelectedContactForCall] = useState<SupportContact | null>(null);
 
+  // Medicine & SOS Alert States
+  const [activeMedicineAlarm, setActiveMedicineAlarm] = useState<{
+    medicine: Medicine;
+    scheduledTime: string;
+    isTest?: boolean;
+  } | null>(null);
+  const [activeSOSAlertModal, setActiveSOSAlertModal] = useState<boolean>(false);
+  const [showSOSConfirmModal, setShowSOSConfirmModal] = useState<boolean>(false);
+  const [highlightedMedicineId, setHighlightedMedicineId] = useState<string | null>(null);
+  const [snoozeList, setSnoozeList] = useState<Array<{
+    medicineId: string;
+    scheduledTime: string;
+    triggerAtTimestamp: number;
+  }>>([]);
+
+  // Time parsing helper
+  const parseTimeToMinutes = (timeStr: string): number | null => {
+    if (!timeStr) return null;
+    const trimmed = timeStr.trim().toUpperCase();
+    const isPM = trimmed.includes('PM');
+    const isAM = trimmed.includes('AM');
+    const clean = trimmed.replace(/[^\d:]/g, '');
+    const parts = clean.split(':');
+    if (parts.length < 2) return null;
+    let hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    if (isNaN(hours) || isNaN(minutes)) return null;
+
+    if (isPM && hours < 12) hours += 12;
+    if (isAM && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  };
+
+  // Compute missed medicines (scheduled >30 mins ago today and not marked taken)
+  const missedMedicineAlerts = useMemo(() => {
+    const alerts: MissedMedicineAlert[] = [];
+    const medicines = state?.medicines || [];
+    const logs = state?.medicineLogs || [];
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const todayDateStr = now.toISOString().split('T')[0];
+
+    medicines.filter(m => m.active).forEach(med => {
+      (med.times || []).forEach(timeStr => {
+        const schedMin = parseTimeToMinutes(timeStr);
+        if (schedMin !== null) {
+          const diff = currentMinutes - schedMin;
+          // If scheduled time was at least 30 minutes ago today
+          if (diff >= 30) {
+            // Check if there is a 'taken' log for today
+            const isTakenToday = logs.some(l => {
+              if (l.medicine_id !== med.id) return false;
+              if (l.status !== 'taken') return false;
+              if (l.scheduled_time && l.scheduled_time.trim().toUpperCase() !== timeStr.trim().toUpperCase()) return false;
+              if (l.actioned_at) {
+                const logDate = new Date(l.actioned_at).toISOString().split('T')[0];
+                return logDate === todayDateStr;
+              }
+              return true;
+            });
+
+            if (!isTakenToday) {
+              alerts.push({
+                medicine: med,
+                scheduledTime: timeStr,
+                delayMinutes: diff,
+              });
+            }
+          }
+        }
+      });
+    });
+
+    return alerts;
+  }, [state?.medicines, state?.medicineLogs]);
+
+  // Compute active SOS events
+  const activeSOSEvents = useMemo(() => {
+    return (state?.sosEvents || []).filter(e => e.status === 'active');
+  }, [state?.sosEvents]);
+
   // Sync state to local storage whenever it changes
   useEffect(() => {
     if (state) {
@@ -150,21 +305,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.log('App running in local/standalone mode with authentic Northeast dataset.');
     }
   }, []);
-
-  useEffect(() => {
-    refreshState();
-  }, [refreshState]);
-
-  // Sync twilight mode to body and html class
-  useEffect(() => {
-    if (state?.settings?.twilightMode) {
-      document.documentElement.classList.add('twilight-mode', 'dark');
-      document.body.classList.add('twilight-mode', 'dark');
-    } else {
-      document.documentElement.classList.remove('twilight-mode', 'dark');
-      document.body.classList.remove('twilight-mode', 'dark');
-    }
-  }, [state?.settings?.twilightMode]);
 
   // Speech synthesis helper
   const speakText = useCallback((text: string) => {
@@ -202,6 +342,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // ignore in environments without canvas
     }
   }, []);
+
+  useEffect(() => {
+    refreshState();
+  }, [refreshState]);
+
+  // Periodic polling to sync server state across tabs/roles every 6 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      refreshState();
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [refreshState]);
+
+  // Background medicine scheduler (checks every 10 seconds)
+  useEffect(() => {
+    const checkSchedule = () => {
+      if (activeMedicineAlarm) return;
+      const now = new Date();
+      const currentTimestamp = now.getTime();
+      const hours = now.getHours();
+      const mins = now.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const h12 = hours % 12 || 12;
+      const nowFormatted12 = `${h12.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')} ${ampm}`;
+      const nowFormatted12Alt = `${h12}:${mins.toString().padStart(2, '0')} ${ampm}`;
+      const todayDateStr = now.toISOString().split('T')[0];
+
+      // 1. Check snoozes
+      const dueSnoozeIndex = snoozeList.findIndex(s => currentTimestamp >= s.triggerAtTimestamp);
+      if (dueSnoozeIndex !== -1) {
+        const snoozeItem = snoozeList[dueSnoozeIndex];
+        const med = (state?.medicines || []).find(m => m.id === snoozeItem.medicineId);
+        if (med && med.active) {
+          setSnoozeList(prev => prev.filter((_, i) => i !== dueSnoozeIndex));
+          setActiveMedicineAlarm({ medicine: med, scheduledTime: snoozeItem.scheduledTime });
+          playMedicineAlarmChime();
+          if (state?.settings?.speakAudio) {
+            speakText(`Time for your medicine: ${med.name}, ${med.dosage}.`);
+          }
+          return;
+        }
+      }
+
+      // 2. Check scheduled times for active medicines
+      const medicines = state?.medicines || [];
+      const logs = state?.medicineLogs || [];
+
+      for (const med of medicines) {
+        if (!med.active) continue;
+        for (const t of (med.times || [])) {
+          const cleanT = t.trim().toUpperCase();
+          if (cleanT === nowFormatted12.toUpperCase() || cleanT === nowFormatted12Alt.toUpperCase()) {
+            const alreadyHandled = logs.some(l => {
+              if (l.medicine_id !== med.id) return false;
+              if (l.scheduled_time && l.scheduled_time.trim().toUpperCase() !== cleanT) return false;
+              if (!l.actioned_at) return false;
+              const logDate = new Date(l.actioned_at).toISOString().split('T')[0];
+              const minutesSinceLog = (currentTimestamp - new Date(l.actioned_at).getTime()) / 60000;
+              return (logDate === todayDateStr && (l.status === 'taken' || minutesSinceLog < 5));
+            });
+
+            if (!alreadyHandled) {
+              setActiveMedicineAlarm({ medicine: med, scheduledTime: t });
+              playMedicineAlarmChime();
+              if (state?.settings?.speakAudio) {
+                speakText(`Time for your medicine: ${med.name}, ${med.dosage}.`);
+              }
+              return;
+            }
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(checkSchedule, 10000);
+    return () => clearInterval(interval);
+  }, [activeMedicineAlarm, snoozeList, state?.medicines, state?.medicineLogs, state?.settings?.speakAudio, speakText]);
+
+  // Sync twilight mode to body and html class
+  useEffect(() => {
+    if (state?.settings?.twilightMode) {
+      document.documentElement.classList.add('twilight-mode', 'dark');
+      document.body.classList.add('twilight-mode', 'dark');
+    } else {
+      document.documentElement.classList.remove('twilight-mode', 'dark');
+      document.body.classList.remove('twilight-mode', 'dark');
+    }
+  }, [state?.settings?.twilightMode]);
 
   // Update caregiver profile
   const updateCaregiver = async (data: Partial<CaregiverUser>) => {
@@ -462,6 +690,240 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // ==========================================
+  // MEDICINE SCHEDULE & ALARM ACTIONS
+  // ==========================================
+
+  // Add Medicine
+  const addMedicine = async (medicine: Partial<Medicine>): Promise<Medicine | null> => {
+    const newMed: Medicine = {
+      id: `med-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      patient_id: state.patient?.id || 'pt-1',
+      name: medicine.name || 'New Medicine',
+      dosage: medicine.dosage || '1 tablet',
+      times: medicine.times && medicine.times.length > 0 ? medicine.times : ['08:00 AM'],
+      notes: medicine.notes || '',
+      active: medicine.active !== undefined ? medicine.active : true,
+    };
+
+    setState(prev => ({
+      ...prev,
+      medicines: [...(prev.medicines || []), newMed],
+    }));
+
+    try {
+      const res = await fetch('/api/medicines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(medicine),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        return created;
+      }
+    } catch (err) {
+      // Handled locally
+    }
+    return newMed;
+  };
+
+  // Update Medicine
+  const updateMedicine = async (id: string, updates: Partial<Medicine>): Promise<Medicine | null> => {
+    let updatedMed: Medicine | null = null;
+    setState(prev => {
+      const list = (prev.medicines || []).map(m => {
+        if (m.id === id) {
+          updatedMed = { ...m, ...updates };
+          return updatedMed;
+        }
+        return m;
+      });
+      return { ...prev, medicines: list };
+    });
+
+    try {
+      const res = await fetch(`/api/medicines/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data;
+      }
+    } catch (err) {
+      // Handled locally
+    }
+    return updatedMed;
+  };
+
+  // Delete Medicine
+  const deleteMedicine = async (id: string): Promise<boolean> => {
+    setState(prev => ({
+      ...prev,
+      medicines: (prev.medicines || []).filter(m => m.id !== id),
+    }));
+
+    try {
+      await fetch(`/api/medicines/${id}`, { method: 'DELETE' });
+      return true;
+    } catch (err) {
+      return true;
+    }
+  };
+
+  // Action a Medicine Alarm ("taken" or "snoozed")
+  const logMedicineAction = async (
+    medicineId: string,
+    scheduledTime: string,
+    status: MedicineLogStatus
+  ): Promise<MedicineLog | null> => {
+    const med = (state?.medicines || []).find(m => m.id === medicineId);
+    const newLog: MedicineLog = {
+      id: `medlog-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      medicine_id: medicineId,
+      scheduled_time: scheduledTime,
+      status,
+      actioned_at: new Date().toISOString(),
+    };
+
+    setState(prev => ({
+      ...prev,
+      medicineLogs: [newLog, ...(prev.medicineLogs || [])],
+    }));
+
+    // Close the current alarm modal
+    setActiveMedicineAlarm(null);
+
+    if (status === 'taken') {
+      // Clear from snooze list if it was snoozed
+      setSnoozeList(prev => prev.filter(s => s.medicineId !== medicineId));
+      playSuccessChime();
+      triggerCelebration();
+      if (med) {
+        speakText(`Wonderful! You took your ${med.name}.`);
+      }
+    } else if (status === 'snoozed') {
+      // Snooze 15 minutes (or demo trigger)
+      const snoozeUntil = Date.now() + 15 * 60 * 1000;
+      setSnoozeList(prev => [
+        ...prev.filter(s => s.medicineId !== medicineId),
+        { medicineId, scheduledTime, triggerAtTimestamp: snoozeUntil },
+      ]);
+      speakText(`Medicine reminder snoozed. We will remind you again in 15 minutes.`);
+    }
+
+    try {
+      const res = await fetch('/api/medicine-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newLog),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      // Handled locally
+    }
+    return newLog;
+  };
+
+  // Trigger test medicine alarm immediately for live demoing
+  const triggerTestMedicineAlarm = (medicineId?: string) => {
+    const medicines = (state?.medicines || []).filter(m => m.active);
+    const target = medicineId
+      ? medicines.find(m => m.id === medicineId) || (state?.medicines || []).find(m => m.id === medicineId)
+      : medicines[0] || (state?.medicines || [])[0];
+
+    if (!target) {
+      // Fallback virtual medicine
+      const fallback: Medicine = {
+        id: 'med-demo',
+        patient_id: state.patient?.id || 'pt-1',
+        name: 'Amlodipine (Blood Pressure)',
+        dosage: '5mg — 1 tablet',
+        times: ['08:00 AM'],
+        notes: 'Take with warm water after morning meal',
+        active: true,
+      };
+      setActiveMedicineAlarm({ medicine: fallback, scheduledTime: '08:00 AM', isTest: true });
+      playMedicineAlarmChime();
+      speakText(`Time for your medicine: Amlodipine, 5mg.`);
+      return;
+    }
+
+    setActiveMedicineAlarm({
+      medicine: target,
+      scheduledTime: target.times[0] || '08:00 AM',
+      isTest: true,
+    });
+    playMedicineAlarmChime();
+    speakText(`Time for your medicine: ${target.name}, ${target.dosage}.`);
+  };
+
+  // ==========================================
+  // PATIENT SOS ALERT ACTIONS
+  // ==========================================
+
+  // Trigger SOS event
+  const triggerSOS = async (location?: string): Promise<SOSEvent | null> => {
+    const loc = location || `${state.patient?.hometown || 'Mokokchung'}, Nagaland`;
+    const newEvent: SOSEvent = {
+      id: `sos-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      patient_id: state.patient?.id || 'pt-1',
+      triggered_at: new Date().toISOString(),
+      status: 'active',
+      resolved_at: null,
+      location: loc,
+    };
+
+    setState(prev => ({
+      ...prev,
+      sosEvents: [newEvent, ...(prev.sosEvents || [])],
+    }));
+
+    playSOSAlertChime();
+    if (state.settings?.speakAudio) {
+      speakText('Your emergency alert has been sent. Your family has been notified.');
+    }
+
+    try {
+      const res = await fetch('/api/sos-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ location: loc }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch (err) {
+      // Handled locally
+    }
+    return newEvent;
+  };
+
+  // Resolve SOS event
+  const resolveSOSEvent = async (id: string): Promise<boolean> => {
+    setState(prev => ({
+      ...prev,
+      sosEvents: (prev.sosEvents || []).map(e =>
+        e.id === id ? { ...e, status: 'resolved', resolved_at: new Date().toISOString() } : e
+      ),
+    }));
+
+    setActiveSOSAlertModal(false);
+    playSuccessChime();
+
+    try {
+      await fetch(`/api/sos-events/${id}`, {
+        method: 'PATCH',
+      });
+      return true;
+    } catch (err) {
+      return true;
+    }
+  };
+
   // Save activity log
   const saveActivityLog = async (log: {
     activity_type: ActivityType;
@@ -491,6 +953,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(log),
+      });
+    } catch (err) {
+      // Handled locally
+    }
+  };
+
+  // Add condition check-in observation
+  const addConditionCheckIn = async (checkIn: {
+    condition_score: number;
+    engagement_score: number;
+    mood: ConditionMood;
+    notes: string;
+    activity_label?: string;
+    logged_by?: string;
+  }) => {
+    const newCheckIn: ConditionCheckIn = {
+      id: `chk-${Date.now()}`,
+      patient_id: state.patient?.id || 'pt-1',
+      timestamp: new Date().toISOString(),
+      condition_score: Math.min(100, Math.max(0, checkIn.condition_score)),
+      engagement_score: Math.min(100, Math.max(0, checkIn.engagement_score)),
+      mood: checkIn.mood,
+      notes: checkIn.notes,
+      activity_label: checkIn.activity_label || 'Caregiver Observation',
+      logged_by: checkIn.logged_by || state.caregiver?.name || 'Caregiver',
+    };
+
+    setState(prev => ({
+      ...prev,
+      conditionCheckIns: [newCheckIn, ...(prev.conditionCheckIns || [])],
+    }));
+
+    playSuccessChime();
+
+    try {
+      await fetch('/api/condition-checkins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCheckIn),
       });
     } catch (err) {
       // Handled locally
@@ -678,6 +1179,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setShowCallModal,
         selectedContactForCall,
         setSelectedContactForCall,
+
+        // Medicine & SOS Alert States
+        activeMedicineAlarm,
+        setActiveMedicineAlarm,
+        triggerTestMedicineAlarm,
+        activeSOSAlertModal,
+        setActiveSOSAlertModal,
+        showSOSConfirmModal,
+        setShowSOSConfirmModal,
+        highlightedMedicineId,
+        setHighlightedMedicineId,
+
+        // Computed alerts
+        missedMedicineAlerts,
+        activeSOSEvents,
+
+        // Data actions
         refreshState,
         updateCaregiver,
         updatePatient,
@@ -690,7 +1208,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteReminder,
         addSupportContact,
         deleteSupportContact,
+
+        // Medicine actions
+        addMedicine,
+        updateMedicine,
+        deleteMedicine,
+        logMedicineAction,
+
+        // SOS actions
+        triggerSOS,
+        resolveSOSEvent,
+
         saveActivityLog,
+        addConditionCheckIn,
         updateSettings,
         resetSeedData,
         generateQuestion,

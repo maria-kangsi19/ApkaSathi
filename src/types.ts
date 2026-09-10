@@ -94,6 +94,37 @@ export interface FamiliarPlace {
   memory_fact: string;
 }
 
+export interface Medicine {
+  id: string;
+  patient_id: string;
+  name: string;
+  dosage: string;
+  times: string[];
+  notes?: string;
+  active: boolean;
+}
+
+export type MedicineLogStatus = 'taken' | 'missed' | 'snoozed';
+
+export interface MedicineLog {
+  id: string;
+  medicine_id: string;
+  scheduled_time: string;
+  status: MedicineLogStatus;
+  actioned_at?: string | null;
+}
+
+export type SOSEventStatus = 'active' | 'resolved';
+
+export interface SOSEvent {
+  id: string;
+  patient_id: string;
+  triggered_at: string;
+  status: SOSEventStatus;
+  resolved_at?: string | null;
+  location?: string;
+}
+
 export interface CompanionSettings {
   pacing: 'gentle_slow' | 'standard';
   twilightMode: boolean;
@@ -101,6 +132,20 @@ export interface CompanionSettings {
   language: string;
   manualTiredMode: boolean;
   soundEffects: boolean;
+}
+
+export type ConditionMood = 'radiant' | 'peaceful' | 'mild_fatigue' | 'needs_comfort';
+
+export interface ConditionCheckIn {
+  id: string;
+  patient_id: string;
+  timestamp: string;
+  condition_score: number; // 0-100
+  engagement_score: number; // 0-100
+  mood: ConditionMood;
+  notes: string;
+  activity_label?: string;
+  logged_by: string;
 }
 
 export interface AppState {
@@ -113,4 +158,8 @@ export interface AppState {
   activityLogs: ActivityLog[];
   familiarPlaces: FamiliarPlace[];
   settings: CompanionSettings;
+  medicines: Medicine[];
+  medicineLogs: MedicineLog[];
+  sosEvents: SOSEvent[];
+  conditionCheckIns?: ConditionCheckIn[];
 }
