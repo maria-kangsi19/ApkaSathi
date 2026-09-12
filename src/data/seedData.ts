@@ -554,4 +554,31 @@ export const INITIAL_APP_STATE: AppState = {
       logged_by: 'Moa Jamir',
     },
   ],
+  doctorAccessGrants: [
+    {
+      id: 'grant-seed-1',
+      doctor_id: null,
+      patient_id: 'pt-1',
+      access_code: 'SAATHI',
+      status: 'active',
+      granted_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+      revoked_at: null,
+      doctor_name: null,
+      doctor_contact: null,
+      last_viewed_at: null,
+    },
+    {
+      id: 'grant-seed-2',
+      doctor_id: 'doc-jamir',
+      patient_id: 'pt-1',
+      access_code: 'DR7842',
+      status: 'active',
+      granted_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+      revoked_at: null,
+      doctor_name: 'Dr. T. Jamir',
+      doctor_contact: '+91 94360 55432',
+      last_viewed_at: new Date(Date.now() - 3600000 * 18).toISOString(),
+    },
+  ],
 };
+

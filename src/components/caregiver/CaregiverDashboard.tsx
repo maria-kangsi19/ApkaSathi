@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Heart,
@@ -23,7 +23,11 @@ import {
   BellRing,
   MapPin,
   ChevronRight,
-  ClipboardList,
+  Stethoscope,
+  KeyRound,
+  Copy,
+  Check,
+  Ban,
 } from 'lucide-react';
 import { useApp, CaregiverTab } from '../../context/AppContext';
 import { NORTHEAST_IMAGES } from '../../assets/images';
@@ -43,6 +47,8 @@ export const CaregiverDashboard: React.FC = () => {
     setShowDisclaimerModal,
     setSelectedContactForCall,
     setShowCallModal,
+    generateDoctorAccessCode,
+    revokeDoctorAccessCode,
   } = useApp();
 
   const patient = state?.patient;
@@ -52,6 +58,28 @@ export const CaregiverDashboard: React.FC = () => {
   const sosEvents = state?.sosEvents || [];
   const activityLogs = state?.activityLogs || [];
   const contacts = state?.supportContacts || [];
+  const doctorGrants = state?.doctorAccessGrants || [];
+
+  const [generatingCode, setGeneratingCode] = useState<boolean>(false);
+  const [inlineNewCode, setInlineNewCode] = useState<string | null>(null);
+  const [copiedInline, setCopiedInline] = useState<boolean>(false);
+  const [revokeConfirmId, setRevokeConfirmId] = useState<string | null>(null);
+
+  const handleInlineGenerate = async () => {
+    setGeneratingCode(true);
+    try {
+      const grant = await generateDoctorAccessCode();
+      setInlineNewCode(grant.access_code);
+    } finally {
+      setGeneratingCode(false);
+    }
+  };
+
+  const handleCopyInline = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedInline(true);
+    setTimeout(() => setCopiedInline(false), 2000);
+  };
 
   const activeMedicines = medicines.filter((m) => m.active);
   const recentLogs = activityLogs.slice(0, 3);
@@ -326,57 +354,149 @@ export const CaregiverDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* SECTION: DOCTOR VISIT SUMMARY */}
+          {/* SECTION: DOCTOR ACCESS */}
           <div className="bg-white dark:bg-[#1D1F1A] rounded-[32px] p-6 border-2 border-[#DCD4C4] dark:border-[#3C4035] hover:border-[#264D24] transition-all flex flex-col justify-between shadow-xs group">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 rounded-2xl bg-[#E0EDE0] text-[#143513] dark:bg-[#263319] dark:text-[#9BB858] flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <ClipboardList className="w-6 h-6" />
+                  <Stethoscope className="w-6 h-6" />
                 </div>
                 <span className="text-xs font-black text-[#264D24] dark:text-[#9BB858] px-2.5 py-0.5 rounded-full bg-[#E0EDE0] dark:bg-[#263319]">
-                  Export Ready
+                  {doctorGrants.filter(g => g.status === 'active').length} Active
                 </span>
               </div>
 
               <div>
-                <h3 className="text-xl font-black text-[#141310] dark:text-[#FCFBF7]">
-                  Doctor Visit Summary
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-black text-[#141310] dark:text-[#FCFBF7]">
+                    Doctor Access
+                  </h3>
+                  <button
+                    onClick={handleInlineGenerate}
+                    disabled={generatingCode}
+                    className="text-xs font-black text-[#264D24] dark:text-[#9BB858] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{generatingCode ? 'Generating...' : 'New Code'}</span>
+                  </button>
+                </div>
                 <p className="text-xs font-bold text-[#66635A] dark:text-[#8E8D85] mt-1">
-                  Export a summary for your next appointment.
+                  Consent-based read-only tracking codes for consulting physicians.
                 </p>
               </div>
 
-              <div className="p-3 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] space-y-1.5 text-xs font-bold">
-                <div className="flex items-center justify-between text-[#3D3A33] dark:text-[#D1D0C5]">
-                  <span>Adherence Tracking:</span>
-                  <span className="font-black text-[#264D24] dark:text-[#9BB858]">7 & 30-Day Windows</span>
+              {/* Inline newly created code banner */}
+              {inlineNewCode && (
+                <div className="p-3.5 rounded-2xl bg-[#F1F7EE] dark:bg-[#202919] border border-[#264D24] text-xs space-y-1.5 animate-fadeIn">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[#264D24] dark:text-[#9BB858] flex items-center gap-1">
+                      <KeyRound className="w-3.5 h-3.5" /> New Code:
+                    </span>
+                    <button
+                      onClick={() => setInlineNewCode(null)}
+                      className="text-[10px] text-[#66635A] hover:underline"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="serif text-xl font-black text-[#264D24] dark:text-[#9BB858] tracking-widest">
+                      {inlineNewCode}
+                    </span>
+                    <button
+                      onClick={() => handleCopyInline(inlineNewCode)}
+                      className="px-2.5 py-1 rounded-full bg-[#264D24] text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedInline ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedInline ? 'Copied' : 'Copy'}</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-[#3D3A33] dark:text-[#D1D0C5]">
-                  <span>Engagement Narrative:</span>
-                  <span className="font-black text-[#141310] dark:text-[#FCFBF7]">AI Synthesized</span>
-                </div>
-                <div className="flex items-center justify-between text-[#3D3A33] dark:text-[#D1D0C5]">
-                  <span>Export Formats:</span>
-                  <span className="font-black text-[#66635A] dark:text-[#8E8D85]">PDF & Print View</span>
-                </div>
+              )}
+
+              {/* List of Doctor Access Grants */}
+              <div className="p-3 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] space-y-2 text-xs">
+                {doctorGrants.length === 0 ? (
+                  <p className="text-[#66635A] dark:text-[#8E8D85] text-center py-1">
+                    No doctor access codes generated yet.
+                  </p>
+                ) : (
+                  doctorGrants.slice(0, 3).map(g => (
+                    <div
+                      key={g.id}
+                      className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-[#1D1F1A] border border-[#EBE5D8] dark:border-[#32362C]"
+                    >
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-mono font-bold tracking-wider ${g.status === 'revoked' ? 'line-through text-neutral-400' : 'text-[#264D24] dark:text-[#9BB858]'}`}>
+                            {g.access_code}
+                          </span>
+                          <span
+                            className={`text-[9px] font-black px-1.5 py-0.2 rounded-full ${
+                              g.status === 'active'
+                                ? 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'
+                                : 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+                            }`}
+                          >
+                            {g.status}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-[#66635A] dark:text-[#8E8D85]">
+                          {g.doctor_name || 'Unlinked'} • {new Date(g.granted_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                        </div>
+                      </div>
+
+                      {g.status === 'active' && (
+                        <div>
+                          {revokeConfirmId === g.id ? (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={async () => {
+                                  await revokeDoctorAccessCode(g.id);
+                                  setRevokeConfirmId(null);
+                                }}
+                                className="px-2 py-0.5 rounded bg-red-600 text-white text-[10px] font-bold cursor-pointer"
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                onClick={() => setRevokeConfirmId(null)}
+                                className="text-[10px] text-[#66635A] cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setRevokeConfirmId(g.id)}
+                              className="text-[11px] font-bold text-red-600 hover:text-red-700 dark:text-red-400 hover:underline cursor-pointer"
+                            >
+                              Revoke
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
             <div className="mt-6 pt-4 border-t border-[#EBE5D8] dark:border-[#32362C] flex items-center justify-between gap-2">
               <span className="text-xs font-bold text-[#66635A] dark:text-[#8E8D85]">
-                Non-clinical context
+                Descriptive, read-only
               </span>
 
               <button
-                onClick={() => setCaregiverTab('doctor_summary')}
+                onClick={() => setCaregiverTab('doctor_access')}
                 className="text-xs font-black text-[#264D24] dark:text-[#9BB858] flex items-center gap-1 hover:underline cursor-pointer"
               >
-                <span>Prepare Summary</span>
+                <span>Manage Doctor Access</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
+
 
           {/* SECTION 3: ACTIVITY LOG */}
           <div className="bg-white dark:bg-[#1D1F1A] rounded-[32px] p-6 border-2 border-[#DCD4C4] dark:border-[#3C4035] hover:border-[#264D24] transition-all flex flex-col justify-between shadow-xs group">

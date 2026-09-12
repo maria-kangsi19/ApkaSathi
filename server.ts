@@ -326,6 +326,32 @@ const INITIAL_SEED_DATA = {
       location: 'Veranda & Orchid Courtyard, Mokokchung',
     },
   ],
+  doctorAccessGrants: [
+    {
+      id: 'grant-seed-1',
+      doctor_id: null,
+      patient_id: 'pt-1',
+      access_code: 'SAATHI',
+      status: 'active',
+      granted_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+      revoked_at: null,
+      doctor_name: null,
+      doctor_contact: null,
+      last_viewed_at: null,
+    },
+    {
+      id: 'grant-seed-2',
+      doctor_id: 'doc-jamir',
+      patient_id: 'pt-1',
+      access_code: 'DR7842',
+      status: 'active',
+      granted_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+      revoked_at: null,
+      doctor_name: 'Dr. T. Jamir',
+      doctor_contact: '+91 94360 55432',
+      last_viewed_at: new Date(Date.now() - 3600000 * 18).toISOString(),
+    },
+  ],
 };
 
 // Database helper functions
@@ -943,56 +969,129 @@ IMPORTANT: Do not use clinical language, scores, percentages, or any language im
     }
   });
 
-  // 5. Doctor Visit Summary Synthesis (Non-Diagnostic)
-  app.post('/api/ai/doctor-summary', async (req, res) => {
-    const {
-      days = 7,
-      notes = [],
-      patient_name = 'Arenla',
-    } = req.body;
-
-    if (!Array.isArray(notes) || notes.length === 0) {
-      return res.json({
-        summary: 'Not enough activity recorded in this period to summarize.',
-        source: 'empty',
-      });
-    }
-
-    const ai = getGeminiClient();
-
-    const formattedNotes = notes
-      .map((n: string, i: number) => `${i + 1}. ${n}`)
-      .join('\n');
-
-    const promptText = `You are helping a family caregiver prepare a short summary for a doctor's visit, based on their notes from a companion app used with an elderly relative. Below are several short daily observation notes from the past ${days} days.
-
-Write one warm, plain-language paragraph (4-6 sentences) synthesizing general patterns across these notes for the caregiver to share with a doctor. Do NOT diagnose, assess cognitive decline, or make any clinical claims. Focus only on descriptive patterns: general engagement, mood as observed by family, and daily routine consistency. If the notes don't show a clear pattern, say so honestly rather than inventing one.
-
-Notes:
-${formattedNotes}
-
-Respond with ONLY the paragraph, nothing else.`;
-
-    if (!ai) {
-      // Fallback synthesis strictly based on the actual notes provided
-      const sampleNotes = notes.slice(0, 3).join(' ');
-      const fallback = `Over the past ${days} days, family observations for ${patient_name} reflect steady daily participation in gentle memory and connection routines. Family members noted periods of positive responsiveness and warmth, particularly when interacting with familiar family photographs and cherished audio recordings. Pacing remained calm and unhurried throughout scheduled sessions, with consistent morning and afternoon engagement. Overall, interactions showed a peaceful, comforted state during family companion time without notable distress during structured activities.`;
-      return res.json({ summary: fallback, source: 'fallback' });
-    }
-
+  // 5. Doctor Access Grant Management & Verification (Consent-based, read-only)
+  app.get('/api/doctor-grants', async (req, res) => {
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.7-flash',
-        contents: promptText,
-      });
-
-      const summary = response.text?.trim() || `Over the past ${days} days, ${patient_name} engaged gently with memory activities and demonstrated positive, calm responses to family connection routines.`;
-      res.json({ summary, source: 'gemini' });
+      const db = await loadDb();
+      res.json(db.doctorAccessGrants || []);
     } catch (err: any) {
-      console.error('Gemini doctor summary error:', err);
-      // Construct honest synthesis based on notes
-      const fallback = `Over the past ${days} days, family observations for ${patient_name} indicate regular engagement with daily companion activities. The notes describe calm participation during family photo recognition and familiar music sessions, with positive reactions noted by caregivers. Daily routines were maintained at a relaxed and comfortable pace. These observations reflect general contentment during shared family time throughout this period.`;
-      res.json({ summary: fallback, source: 'fallback_on_error' });
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/doctor-grants', async (req, res) => {
+    try {
+      const db = await loadDb();
+      const codeChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 6; i++) {
+        code += codeChars.charAt(Math.floor(Math.random() * codeChars.length));
+      }
+
+      const newGrant = {
+        id: `dag-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        doctor_id: null,
+        patient_id: db.patient?.id || 'pt-1',
+        access_code: code,
+        status: 'active',
+        granted_at: new Date().toISOString(),
+        revoked_at: null,
+        doctor_name: null,
+        doctor_contact: null,
+        last_viewed_at: null,
+      };
+
+      db.doctorAccessGrants = [newGrant, ...(db.doctorAccessGrants || [])];
+      await saveDb(db);
+      res.json(newGrant);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/doctor-grants/:id/revoke', async (req, res) => {
+    try {
+      const db = await loadDb();
+      let updated: any = null;
+      db.doctorAccessGrants = (db.doctorAccessGrants || []).map((g: any) => {
+        if (g.id === req.params.id) {
+          updated = {
+            ...g,
+            status: 'revoked',
+            revoked_at: new Date().toISOString(),
+          };
+          return updated;
+        }
+        return g;
+      });
+      await saveDb(db);
+      if (!updated) {
+        return res.status(404).json({ error: 'Grant not found' });
+      }
+      res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/doctor/verify-code', async (req, res) => {
+    try {
+      const { access_code, doctor_id, doctor_name, doctor_contact } = req.body;
+      const cleanCode = (access_code || '').trim().toUpperCase();
+
+      const db = await loadDb();
+      const grants = db.doctorAccessGrants || [];
+      const matchIndex = grants.findIndex(
+        (g: any) => g.access_code?.toUpperCase() === cleanCode
+      );
+
+      if (matchIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          error: "This code isn't valid or has been removed. Please check with the caregiver.",
+        });
+      }
+
+      const grant = grants[matchIndex];
+      if (grant.status === 'revoked') {
+        return res.status(403).json({
+          success: false,
+          error: "This code isn't valid or has been removed. Please check with the caregiver.",
+        });
+      }
+
+      // Update grant with doctor details and last_viewed_at
+      const updatedGrant = {
+        ...grant,
+        doctor_id: doctor_id || grant.doctor_id || `doc-${Date.now()}`,
+        doctor_name: doctor_name || grant.doctor_name || 'Healthcare Provider',
+        doctor_contact: doctor_contact || grant.doctor_contact || '',
+        last_viewed_at: new Date().toISOString(),
+      };
+      grants[matchIndex] = updatedGrant;
+      db.doctorAccessGrants = grants;
+      await saveDb(db);
+
+      // Return only scoped, non-private context
+      const patient = db.patient || {};
+      const safePatient = {
+        id: patient.id || 'pt-1',
+        name: patient.name || 'Arenla Ao',
+        nickname: patient.nickname,
+        age: patient.age,
+        hometown: patient.hometown,
+        community: patient.community,
+        preferred_language: patient.preferred_language,
+        caregiver_notes: patient.caregiver_notes,
+      };
+
+      res.json({
+        success: true,
+        grant: updatedGrant,
+        patient: safePatient,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
     }
   });
 

@@ -65,7 +65,11 @@ export const Header: React.FC = () => {
               <p className="text-[11px] md:text-xs text-[#1C1B17] dark:text-[#E2E0D5] tracking-wider uppercase font-bold truncate max-w-[200px] sm:max-w-xs">
                 {appMode === 'patient'
                   ? `Loving Companion — Patient View`
-                  : 'Family Companion — Caregiver Hub'}
+                  : appMode === 'doctor'
+                  ? 'Clinician Portal — Doctor Access'
+                  : appMode === 'caregiver'
+                  ? 'Family Companion — Caregiver Hub'
+                  : 'Role Selection'}
               </p>
             </div>
           </button>
@@ -169,6 +173,14 @@ export const Header: React.FC = () => {
             >
               <UserCheck className="w-3.5 h-3.5" />
               <span>Patient View 🌸</span>
+            </button>
+          ) : appMode === 'doctor' ? (
+            <button
+              onClick={() => setAppMode('role_select')}
+              className="bg-[#1E4D6B] text-white px-5 py-2.5 rounded-full font-extrabold shadow-md hover:bg-[#16384E] uppercase tracking-wider text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Role Select</span>
             </button>
           ) : null}
         </div>

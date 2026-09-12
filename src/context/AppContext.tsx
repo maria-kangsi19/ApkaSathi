@@ -19,6 +19,8 @@ import {
   SOSEventStatus,
   ConditionCheckIn,
   ConditionMood,
+  DoctorUser,
+  DoctorAccessGrant,
 } from '../types';
 import { INITIAL_APP_STATE } from '../data/seedData';
 import {
@@ -27,9 +29,9 @@ import {
   playSuccessChime,
 } from '../utils/audio';
 
-export type AppMode = 'role_select' | 'patient' | 'caregiver';
+export type AppMode = 'role_select' | 'patient' | 'caregiver' | 'doctor';
 export type PatientScreen = 'home' | 'who_is_this' | 'sounds_of_home' | 'familiar_places' | 'cognitive_exercises' | 'session_end' | 'family_gallery' | 'reminders';
-export type CaregiverTab = 'dashboard' | 'medicines' | 'emergency_log' | 'doctor_summary' | 'media' | 'reminders' | 'activity_log' | 'support_circle' | 'settings';
+export type CaregiverTab = 'dashboard' | 'medicines' | 'emergency_log' | 'doctor_access' | 'media' | 'reminders' | 'activity_log' | 'support_circle' | 'settings';
 
 export interface MissedMedicineAlert {
   medicine: Medicine;
@@ -63,6 +65,10 @@ const getInitialLocalState = (): AppState => {
             parsed.conditionCheckIns && parsed.conditionCheckIns.length > 0
               ? parsed.conditionCheckIns
               : INITIAL_APP_STATE.conditionCheckIns || [],
+          doctorAccessGrants:
+            parsed.doctorAccessGrants && parsed.doctorAccessGrants.length > 0
+              ? parsed.doctorAccessGrants
+              : INITIAL_APP_STATE.doctorAccessGrants || [],
         };
       }
     }
@@ -88,6 +94,16 @@ interface AppContextType {
   setShowCallModal: (show: boolean) => void;
   selectedContactForCall: SupportContact | null;
   setSelectedContactForCall: (contact: SupportContact | null) => void;
+
+  // Doctor Access & Portal States
+  currentDoctor: DoctorUser | null;
+  activePatientGrant: DoctorAccessGrant | null;
+  loginDoctor: (doctor: DoctorUser) => void;
+  logoutDoctor: () => void;
+  generateDoctorAccessCode: () => Promise<DoctorAccessGrant>;
+  revokeDoctorAccessCode: (grantId: string) => Promise<void>;
+  verifyAndLinkDoctorCode: (code: string) => Promise<{ success: boolean; error?: string; grant?: DoctorAccessGrant }>;
+  setActivePatientGrant: (grant: DoctorAccessGrant | null) => void;
 
   // Medicine & SOS Alert States
   activeMedicineAlarm: {
@@ -186,12 +202,6 @@ interface AppContextType {
 
   translateText: (text: string, target_language: string) => Promise<string>;
 
-  generateDoctorSummary: (params: {
-    days: number;
-    notes: string[];
-    patient_name?: string;
-  }) => Promise<string>;
-
   // Speech & Sound utilities
   speakText: (text: string) => void;
   stopSpeaking: () => void;
@@ -210,6 +220,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [showDisclaimerModal, setShowDisclaimerModal] = useState<boolean>(false);
   const [showCallModal, setShowCallModal] = useState<boolean>(false);
   const [selectedContactForCall, setSelectedContactForCall] = useState<SupportContact | null>(null);
+
+  // Doctor session state
+  const [currentDoctor, setCurrentDoctor] = useState<DoctorUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('aapka_saathi_doctor_v1');
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+  const [activePatientGrant, setActivePatientGrant] = useState<DoctorAccessGrant | null>(null);
+
+  // Persist doctor session
+  useEffect(() => {
+    if (currentDoctor) {
+      try {
+        localStorage.setItem('aapka_saathi_doctor_v1', JSON.stringify(currentDoctor));
+      } catch (e) {
+        console.warn('Failed to save doctor session:', e);
+      }
+    } else {
+      localStorage.removeItem('aapka_saathi_doctor_v1');
+    }
+  }, [currentDoctor]);
 
   // Medicine & SOS Alert States
   const [activeMedicineAlarm, setActiveMedicineAlarm] = useState<{
@@ -1174,33 +1208,157 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return text;
   };
 
-  // AI: Doctor Visit Summary Synthesis
-  const generateDoctorSummary = async (params: {
-    days: number;
-    notes: string[];
-    patient_name?: string;
-  }): Promise<string> => {
-    if (!params.notes || params.notes.length === 0) {
-      return 'Not enough activity recorded in this period to summarize.';
+  // Doctor Access Methods
+  const generateDoctorAccessCode = async (): Promise<DoctorAccessGrant> => {
+    const codeChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += codeChars.charAt(Math.floor(Math.random() * codeChars.length));
     }
+
+    const newGrant: DoctorAccessGrant = {
+      id: `dag-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      doctor_id: null,
+      patient_id: state?.patient?.id || 'pt-1',
+      access_code: code,
+      status: 'active',
+      granted_at: new Date().toISOString(),
+      revoked_at: null,
+      doctor_name: null,
+      doctor_contact: null,
+      last_viewed_at: null,
+    };
+
+    setState(prev => ({
+      ...prev,
+      doctorAccessGrants: [newGrant, ...(prev.doctorAccessGrants || [])],
+    }));
+
     try {
-      const res = await fetch('/api/ai/doctor-summary', {
+      const res = await fetch('/api/doctor-grants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const serverGrant = await res.json();
+        if (serverGrant && serverGrant.id) {
+          setState(prev => ({
+            ...prev,
+            doctorAccessGrants: [serverGrant, ...(prev.doctorAccessGrants || []).filter(g => g.id !== newGrant.id)],
+          }));
+          return serverGrant;
+        }
+      }
+    } catch (err) {
+      console.warn('Doctor grant saved locally:', err);
+    }
+
+    return newGrant;
+  };
+
+  const revokeDoctorAccessCode = async (grantId: string): Promise<void> => {
+    setState(prev => ({
+      ...prev,
+      doctorAccessGrants: (prev.doctorAccessGrants || []).map(g => {
+        if (g.id === grantId) {
+          return {
+            ...g,
+            status: 'revoked',
+            revoked_at: new Date().toISOString(),
+          };
+        }
+        return g;
+      }),
+    }));
+
+    try {
+      await fetch(`/api/doctor-grants/${grantId}/revoke`, {
+        method: 'POST',
+      });
+    } catch (err) {
+      console.warn('Revoked grant locally:', err);
+    }
+  };
+
+  const loginDoctor = (doctor: DoctorUser) => {
+    setCurrentDoctor(doctor);
+  };
+
+  const logoutDoctor = () => {
+    setCurrentDoctor(null);
+    setActivePatientGrant(null);
+    setAppMode('role_select');
+  };
+
+  const verifyAndLinkDoctorCode = async (
+    accessCode: string
+  ): Promise<{ success: boolean; error?: string; grant?: DoctorAccessGrant }> => {
+    const clean = (accessCode || '').trim().toUpperCase();
+    if (!clean) {
+      return { success: false, error: 'Please enter an access code.' };
+    }
+
+    try {
+      const res = await fetch('/api/doctor/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          days: params.days,
-          notes: params.notes,
-          patient_name: params.patient_name || state.patient?.name || 'Arenla',
+          access_code: clean,
+          doctor_id: currentDoctor?.id,
+          doctor_name: currentDoctor?.name,
+          doctor_contact: currentDoctor?.phone_or_email,
         }),
       });
+
       if (res.ok) {
         const data = await res.json();
-        if (data && data.summary) return data.summary;
+        if (data.success && data.grant) {
+          setActivePatientGrant(data.grant);
+          setState(prev => ({
+            ...prev,
+            doctorAccessGrants: (prev.doctorAccessGrants || []).map(g =>
+              g.id === data.grant.id ? data.grant : g
+            ),
+          }));
+          return { success: true, grant: data.grant };
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        return {
+          success: false,
+          error: errData.error || "This code isn't valid or has been removed. Please check with the caregiver.",
+        };
       }
-    } catch (err) {
-      console.error('Failed to generate doctor summary from API:', err);
+    } catch (e) {
+      console.warn('Network error, checking local fallback for access code:', e);
     }
-    return `Over the past ${params.days} days, family observations for ${params.patient_name || 'Arenla'} reflect steady daily participation in gentle memory and connection routines. Notes indicate calm engagement during family photo recognition and familiar music sessions, with positive reactions noted by caregivers. Daily routines were maintained at a relaxed and comfortable pace. These observations reflect general contentment during shared family time throughout this period.`;
+
+    // Local fallback check
+    const grants = state?.doctorAccessGrants || [];
+    const found = grants.find(g => g.access_code?.toUpperCase() === clean);
+    if (!found || found.status === 'revoked') {
+      return {
+        success: false,
+        error: "This code isn't valid or has been removed. Please check with the caregiver.",
+      };
+    }
+
+    const updated: DoctorAccessGrant = {
+      ...found,
+      doctor_id: currentDoctor?.id || found.doctor_id,
+      doctor_name: currentDoctor?.name || found.doctor_name || 'Healthcare Provider',
+      doctor_contact: currentDoctor?.phone_or_email || found.doctor_contact,
+      last_viewed_at: new Date().toISOString(),
+    };
+
+    setState(prev => ({
+      ...prev,
+      doctorAccessGrants: (prev.doctorAccessGrants || []).map(g => (g.id === updated.id ? updated : g)),
+    }));
+
+    setActivePatientGrant(updated);
+    return { success: true, grant: updated };
   };
 
   return (
@@ -1221,6 +1379,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setShowCallModal,
         selectedContactForCall,
         setSelectedContactForCall,
+
+        // Doctor Portal & Access states
+        currentDoctor,
+        activePatientGrant,
+        loginDoctor,
+        logoutDoctor,
+        generateDoctorAccessCode,
+        revokeDoctorAccessCode,
+        verifyAndLinkDoctorCode,
+        setActivePatientGrant,
 
         // Medicine & SOS Alert States
         activeMedicineAlarm,
@@ -1268,7 +1436,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         generateQuestion,
         generateFeedback,
         generateSummary,
-        generateDoctorSummary,
         translateText,
         speakText,
         stopSpeaking,
@@ -1278,6 +1445,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       {children}
     </AppContext.Provider>
   );
+
 };
 
 export const useApp = () => {

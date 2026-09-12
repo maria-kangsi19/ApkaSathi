@@ -5,6 +5,7 @@ import { RoleSelectionScreen } from './components/common/RoleSelectionScreen';
 import { DisclaimerModal } from './components/common/DisclaimerModal';
 import { CaregiverHubLayout } from './components/caregiver/CaregiverHubLayout';
 import { PatientContainer } from './components/patient/PatientContainer';
+import { DoctorContainer } from './components/doctor/DoctorContainer';
 import { PatientMedicineAlarmModal } from './components/patient/PatientMedicineAlarmModal';
 import { PatientSOSModal } from './components/patient/PatientSOSModal';
 import { RefreshCw, Heart } from 'lucide-react';
@@ -46,6 +47,7 @@ const AppContent: React.FC = () => {
           {appMode === 'role_select' && <RoleSelectionScreen />}
           {appMode === 'patient' && <PatientContainer />}
           {appMode === 'caregiver' && <CaregiverHubLayout />}
+          {appMode === 'doctor' && <DoctorContainer />}
         </main>
       </div>
 

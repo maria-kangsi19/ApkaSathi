@@ -148,6 +148,28 @@ export interface ConditionCheckIn {
   logged_by: string;
 }
 
+export interface DoctorUser {
+  id: string;
+  name: string;
+  phone_or_email: string;
+  medical_registration_id?: string; // optional, self-declared, not verified for this prototype
+}
+
+export type DoctorAccessStatus = 'active' | 'revoked';
+
+export interface DoctorAccessGrant {
+  id: string;
+  doctor_id?: string | null;
+  patient_id: string;
+  access_code: string;
+  status: DoctorAccessStatus;
+  granted_at: string;
+  revoked_at?: string | null;
+  doctor_name?: string | null;
+  doctor_contact?: string | null;
+  last_viewed_at?: string | null;
+}
+
 export interface AppState {
   caregiver: CaregiverUser;
   patient: PatientProfile;
@@ -162,4 +184,6 @@ export interface AppState {
   medicineLogs: MedicineLog[];
   sosEvents: SOSEvent[];
   conditionCheckIns?: ConditionCheckIn[];
+  doctorAccessGrants?: DoctorAccessGrant[];
 }
+

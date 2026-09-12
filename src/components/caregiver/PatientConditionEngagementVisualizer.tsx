@@ -47,7 +47,23 @@ interface HourlyDataPoint {
   iconType?: 'pill' | 'photo' | 'music' | 'rest' | 'tea' | 'chat';
 }
 
-export const PatientConditionEngagementVisualizer: React.FC = () => {
+export interface PatientConditionEngagementVisualizerProps {
+  readOnly?: boolean;
+  isDoctorView?: boolean;
+}
+
+export const getConditionQualitativeTag = (score: number): { label: string; color: string } => {
+  if (score >= 90) return { label: 'Serene & Receptive', color: 'text-[#264D24] dark:text-[#9BB858]' };
+  if (score >= 80) return { label: 'Calm & Content', color: 'text-[#264D24] dark:text-[#9BB858]' };
+  if (score >= 70) return { label: 'Settled & Steady', color: 'text-emerald-700 dark:text-emerald-400' };
+  if (score >= 60) return { label: 'Mild Restlessness', color: 'text-amber-700 dark:text-amber-400' };
+  return { label: 'Quiet Resting Needed', color: 'text-stone-600 dark:text-stone-400' };
+};
+
+export const PatientConditionEngagementVisualizer: React.FC<PatientConditionEngagementVisualizerProps> = ({
+  readOnly = false,
+  isDoctorView = false,
+}) => {
   const { state, addConditionCheckIn, setShowDisclaimerModal } = useApp();
   const patient = state?.patient;
   const activityLogs = state?.activityLogs || [];
@@ -381,10 +397,10 @@ export const PatientConditionEngagementVisualizer: React.FC = () => {
             <div className="flex items-center justify-between">
               <span className="font-bold text-[#66635A] dark:text-[#8E8D85] flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-[#264D24]" />
-                Patient Condition:
+                {isDoctorView ? 'Caregiver Observation:' : 'Patient Condition:'}
               </span>
               <span className="font-black text-[#264D24] dark:text-[#9BB858]">
-                {dataPoint.condition}%
+                {isDoctorView ? getConditionQualitativeTag(dataPoint.condition).label : `${dataPoint.condition}%`}
               </span>
             </div>
 
@@ -439,16 +455,18 @@ export const PatientConditionEngagementVisualizer: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            {/* Log Observation Button */}
-            <button
-              onClick={() => setShowLogModal(true)}
-              className="px-5 py-2.5 rounded-full bg-[#264D24] hover:bg-[#1E3E1C] text-white text-xs sm:text-sm font-black shadow-sm flex items-center gap-2 cursor-pointer transition-transform hover:scale-105"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Log Mood / Check-In</span>
-            </button>
-          </div>
+          {!readOnly && !isDoctorView && (
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              {/* Log Observation Button */}
+              <button
+                onClick={() => setShowLogModal(true)}
+                className="px-5 py-2.5 rounded-full bg-[#264D24] hover:bg-[#1E3E1C] text-white text-xs sm:text-sm font-black shadow-sm flex items-center gap-2 cursor-pointer transition-transform hover:scale-105"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Log Mood / Check-In</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 2. Key Metrics Summary Grid */}
@@ -456,19 +474,20 @@ export const PatientConditionEngagementVisualizer: React.FC = () => {
           <div className="p-4 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-[#66635A] dark:text-[#8E8D85]">
-                Avg Condition / Comfort
+                {isDoctorView ? 'Observed Demeanor' : 'Avg Condition / Comfort'}
               </span>
               <Heart className="w-4 h-4 text-[#264D24] fill-current" />
             </div>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-black text-[#264D24] dark:text-[#9BB858]">
-                {avgCondition}%
+              <span className="text-lg sm:text-2xl font-black text-[#264D24] dark:text-[#9BB858]">
+                {isDoctorView ? getConditionQualitativeTag(avgCondition).label : `${avgCondition}%`}
               </span>
               <span className="text-[11px] font-bold text-[#3D3A33] dark:text-[#D1D0C5]">
-                Serene & Peaceful
+                {isDoctorView ? 'Descriptive Log' : 'Serene & Peaceful'}
               </span>
             </div>
           </div>
+
 
           <div className="p-4 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] space-y-1">
             <div className="flex items-center justify-between">
@@ -723,9 +742,11 @@ export const PatientConditionEngagementVisualizer: React.FC = () => {
 
             <div className="flex items-center gap-3 shrink-0">
               <div className="text-center px-3 py-1.5 rounded-xl bg-white dark:bg-[#1D1F1A] border border-[#EBE5D8] dark:border-[#32362C]">
-                <span className="block text-[10px] font-bold text-[#66635A] dark:text-[#8E8D85]">Condition</span>
-                <span className="text-sm font-black text-[#264D24] dark:text-[#9BB858]">
-                  {selectedPoint.condition}%
+                <span className="block text-[10px] font-bold text-[#66635A] dark:text-[#8E8D85]">
+                  {isDoctorView ? 'Observed State' : 'Condition'}
+                </span>
+                <span className="text-xs sm:text-sm font-black text-[#264D24] dark:text-[#9BB858]">
+                  {isDoctorView ? getConditionQualitativeTag(selectedPoint.condition).label : `${selectedPoint.condition}%`}
                 </span>
               </div>
               <div className="text-center px-3 py-1.5 rounded-xl bg-white dark:bg-[#1D1F1A] border border-[#EBE5D8] dark:border-[#32362C]">
@@ -765,7 +786,7 @@ export const PatientConditionEngagementVisualizer: React.FC = () => {
                   <div className="flex items-center justify-between gap-3 text-[10px] font-black">
                     <span>{point.timeLabel}</span>
                     <span className={isSelected ? 'text-emerald-200' : 'text-[#264D24] dark:text-[#9BB858]'}>
-                      {point.condition}%
+                      {isDoctorView ? getConditionQualitativeTag(point.condition).label.split(' ')[0] : `${point.condition}%`}
                     </span>
                   </div>
                   <div className="text-xs font-black truncate max-w-[130px] mt-0.5">
