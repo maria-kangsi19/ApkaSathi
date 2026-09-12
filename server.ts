@@ -352,6 +352,25 @@ const INITIAL_SEED_DATA = {
       last_viewed_at: new Date(Date.now() - 3600000 * 18).toISOString(),
     },
   ],
+  developerFeedback: [
+    {
+      id: 'fb-seed-1',
+      caregiver_id: 'cg-1',
+      caregiver_name: 'Moa Jamir',
+      caregiver_contact: '+91 98621 54321',
+      category: 'cultural_languages',
+      topic: 'Ao Naga traditional lullabies and hymns',
+      details: 'Ayo responded with great joy and calmness when listening to Sentila and the church choir recording. Would love to have a direct library of North Eastern traditional folk lullabies and songs from Mokokchung and Ungma villages in the Sounds of Home section.',
+      priority: 'helpful',
+      created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+      app_version: 'v1.4 (North East India Edition)',
+      system_info: {
+        screen_size: '1024x768',
+        language: 'Nagamese / English',
+      },
+      status: 'received',
+    },
+  ],
   conditionCheckIns: [
     {
       id: 'chk-1',
@@ -478,6 +497,10 @@ async function loadDb() {
     }
     if (!Array.isArray(parsed.conditionCheckIns) || parsed.conditionCheckIns.length === 0) {
       parsed.conditionCheckIns = JSON.parse(JSON.stringify(INITIAL_SEED_DATA.conditionCheckIns || []));
+      dirty = true;
+    }
+    if (!Array.isArray(parsed.developerFeedback) || parsed.developerFeedback.length === 0) {
+      parsed.developerFeedback = JSON.parse(JSON.stringify(INITIAL_SEED_DATA.developerFeedback || []));
       dirty = true;
     }
 
@@ -1228,6 +1251,65 @@ IMPORTANT: Do not use clinical language, scores, percentages, or any language im
         grant: updatedGrant,
         patient: safePatient,
       });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // 6. Developer Feedback & App Improvement Suggestions
+  app.get('/api/developer-feedback', async (req, res) => {
+    try {
+      const db = await loadDb();
+      res.json(db.developerFeedback || []);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/developer-feedback', async (req, res) => {
+    try {
+      const {
+        caregiver_id,
+        caregiver_name,
+        caregiver_contact,
+        category,
+        topic,
+        details,
+        priority,
+        app_version,
+        system_info,
+      } = req.body;
+
+      if (!topic || !details || !category) {
+        return res.status(400).json({
+          error: 'Please provide a category, summary topic, and details for your feedback.',
+        });
+      }
+
+      const db = await loadDb();
+      if (!Array.isArray(db.developerFeedback)) {
+        db.developerFeedback = [];
+      }
+
+      const feedbackItem = {
+        id: `dfb-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        caregiver_id: caregiver_id || db.caregiver?.id || 'cg-1',
+        caregiver_name: caregiver_name || db.caregiver?.name || 'Caregiver',
+        caregiver_contact: caregiver_contact || db.caregiver?.phone || db.caregiver?.phone_number || '',
+        category: category,
+        topic: topic.trim(),
+        details: details.trim(),
+        priority: priority || 'standard',
+        created_at: new Date().toISOString(),
+        app_version: app_version || 'v1.4 (North East India Edition)',
+        system_info: system_info || null,
+        status: 'received',
+      };
+
+      db.developerFeedback.unshift(feedbackItem);
+      await saveDb(db);
+
+      res.status(201).json(feedbackItem);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

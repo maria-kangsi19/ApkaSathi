@@ -580,5 +580,24 @@ export const INITIAL_APP_STATE: AppState = {
       last_viewed_at: new Date(Date.now() - 3600000 * 18).toISOString(),
     },
   ],
+  developerFeedback: [
+    {
+      id: 'fb-seed-1',
+      caregiver_id: 'cg-1',
+      caregiver_name: 'Moa Jamir',
+      caregiver_contact: '+91 98621 54321',
+      category: 'cultural_languages',
+      topic: 'Ao Naga traditional lullabies and hymns',
+      details: 'Ayo responded with great joy and calmness when listening to Sentila and the church choir recording. Would love to have a direct library of North Eastern traditional folk lullabies and songs from Mokokchung and Ungma villages in the Sounds of Home section.',
+      priority: 'helpful',
+      created_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+      app_version: 'v1.4 (North East India Edition)',
+      system_info: {
+        screen_size: '1024x768',
+        language: 'Nagamese / English',
+      },
+      status: 'received',
+    },
+  ],
 };
 

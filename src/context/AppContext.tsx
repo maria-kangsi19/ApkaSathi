@@ -21,6 +21,7 @@ import {
   ConditionMood,
   DoctorUser,
   DoctorAccessGrant,
+  DeveloperFeedback,
 } from '../types';
 import { INITIAL_APP_STATE } from '../data/seedData';
 import {
@@ -31,7 +32,7 @@ import {
 
 export type AppMode = 'role_select' | 'patient' | 'caregiver' | 'doctor';
 export type PatientScreen = 'home' | 'who_is_this' | 'sounds_of_home' | 'familiar_places' | 'cognitive_exercises' | 'session_end' | 'family_gallery' | 'reminders';
-export type CaregiverTab = 'dashboard' | 'medicines' | 'emergency_log' | 'doctor_access' | 'media' | 'reminders' | 'activity_log' | 'support_circle' | 'settings';
+export type CaregiverTab = 'dashboard' | 'medicines' | 'emergency_log' | 'doctor_access' | 'media' | 'reminders' | 'activity_log' | 'support_circle' | 'settings' | 'feedback';
 
 export interface MissedMedicineAlert {
   medicine: Medicine;
@@ -69,6 +70,10 @@ const getInitialLocalState = (): AppState => {
             parsed.doctorAccessGrants && parsed.doctorAccessGrants.length > 0
               ? parsed.doctorAccessGrants
               : INITIAL_APP_STATE.doctorAccessGrants || [],
+          developerFeedback:
+            parsed.developerFeedback && Array.isArray(parsed.developerFeedback)
+              ? parsed.developerFeedback
+              : INITIAL_APP_STATE.developerFeedback || [],
         };
       }
     }
@@ -96,6 +101,8 @@ interface AppContextType {
   setShowDisclaimerModal: (show: boolean) => void;
   showCallModal: boolean;
   setShowCallModal: (show: boolean) => void;
+  isFeedbackModalOpen: boolean;
+  setIsFeedbackModalOpen: (show: boolean) => void;
   selectedContactForCall: SupportContact | null;
   setSelectedContactForCall: (contact: SupportContact | null) => void;
 
@@ -177,6 +184,9 @@ interface AppContextType {
   }) => Promise<void>;
   updateSettings: (settings: Partial<CompanionSettings>) => Promise<void>;
   resetSeedData: () => Promise<void>;
+  submitDeveloperFeedback: (
+    feedback: Omit<DeveloperFeedback, 'id' | 'created_at' | 'status'>
+  ) => Promise<DeveloperFeedback>;
 
   // AI Actions
   generateQuestion: (params: {
@@ -224,6 +234,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [caregiverTab, setCaregiverTab] = useState<CaregiverTab>('dashboard');
   const [showDisclaimerModal, setShowDisclaimerModal] = useState<boolean>(false);
   const [showCallModal, setShowCallModal] = useState<boolean>(false);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState<boolean>(false);
   const [selectedContactForCall, setSelectedContactForCall] = useState<SupportContact | null>(null);
 
   // Doctor session state
@@ -392,6 +403,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 : (prev?.doctorAccessGrants && prev.doctorAccessGrants.length > 0
                     ? prev.doctorAccessGrants
                     : INITIAL_APP_STATE.doctorAccessGrants || []),
+            developerFeedback:
+              Array.isArray(data.developerFeedback) && data.developerFeedback.length > 0
+                ? data.developerFeedback
+                : (prev?.developerFeedback && prev.developerFeedback.length > 0
+                    ? prev.developerFeedback
+                    : INITIAL_APP_STATE.developerFeedback || []),
           }));
         } else {
           stateFailed = true;
@@ -1193,6 +1210,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  // Submit feedback or app improvement idea to developer
+  const submitDeveloperFeedback = async (
+    feedback: Omit<DeveloperFeedback, 'id' | 'created_at' | 'status'>
+  ): Promise<DeveloperFeedback> => {
+    const newFeedback: DeveloperFeedback = {
+      ...feedback,
+      id: `dfb-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      caregiver_id: feedback.caregiver_id || state?.caregiver?.id || 'cg-1',
+      caregiver_name: feedback.caregiver_name || state?.caregiver?.name || 'Caregiver',
+      caregiver_contact: feedback.caregiver_contact || state?.caregiver?.phone || state?.caregiver?.phone_number || '',
+      created_at: new Date().toISOString(),
+      status: 'received',
+    };
+
+    setState(prev => ({
+      ...prev,
+      developerFeedback: [newFeedback, ...(prev.developerFeedback || [])],
+    }));
+
+    playSuccessChime();
+
+    try {
+      const res = await fetch('/api/developer-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newFeedback),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setState(prev => ({
+          ...prev,
+          developerFeedback: (prev.developerFeedback || []).map(f => (f.id === newFeedback.id ? saved : f)),
+        }));
+        return saved;
+      }
+    } catch (err) {
+      console.warn('Developer feedback saved locally in offline mode:', err);
+    }
+    return newFeedback;
+  };
+
   // AI: Gentle Question Generation
   const generateQuestion = async (params: {
     person_name?: string;
@@ -1549,6 +1607,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setShowDisclaimerModal,
         showCallModal,
         setShowCallModal,
+        isFeedbackModalOpen,
+        setIsFeedbackModalOpen,
         selectedContactForCall,
         setSelectedContactForCall,
 
@@ -1605,6 +1665,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addConditionCheckIn,
         updateSettings,
         resetSeedData,
+        submitDeveloperFeedback,
         generateQuestion,
         generateFeedback,
         generateSummary,

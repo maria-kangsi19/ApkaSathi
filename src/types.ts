@@ -190,5 +190,36 @@ export interface AppState {
   sosEvents: SOSEvent[];
   conditionCheckIns?: ConditionCheckIn[];
   doctorAccessGrants?: DoctorAccessGrant[];
+  developerFeedback?: DeveloperFeedback[];
+}
+
+export type FeedbackCategory =
+  | 'feature_suggestion'
+  | 'elder_comfort'
+  | 'cultural_languages'
+  | 'medicines_routines'
+  | 'issue_bug'
+  | 'general_appreciation';
+
+export type FeedbackPriority = 'standard' | 'helpful' | 'urgent';
+
+export interface DeveloperFeedback {
+  id: string;
+  caregiver_id?: string;
+  caregiver_name: string;
+  caregiver_contact?: string;
+  category: FeedbackCategory;
+  topic: string;
+  details: string;
+  priority: FeedbackPriority;
+  created_at: string;
+  app_version?: string;
+  system_info?: {
+    user_agent?: string;
+    screen_size?: string;
+    theme?: string;
+    language?: string;
+  };
+  status?: 'received' | 'in_review' | 'implemented';
 }
 

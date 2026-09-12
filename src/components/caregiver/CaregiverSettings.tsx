@@ -14,6 +14,7 @@ import {
   Volume2,
   Sparkles,
   Check,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Community } from '../../types';
@@ -26,6 +27,8 @@ export const CaregiverSettings: React.FC = () => {
     updateSettings,
     resetSeedData,
     setShowDisclaimerModal,
+    setCaregiverTab,
+    setIsFeedbackModalOpen,
   } = useApp();
 
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -409,6 +412,49 @@ export const CaregiverSettings: React.FC = () => {
           </div>
         </div>
       </form>
+
+      {/* Developer Feedback & App Improvement Suggestions */}
+      <div className="rounded-3xl bg-white dark:bg-[#1D1F1A] border-2 border-[#DCD4C4] dark:border-[#3C4035] p-6 sm:p-8 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#FAEBCE] text-[#5E3500] dark:bg-[#3D2D14] dark:text-[#F7C04D] flex items-center justify-center shrink-0 border border-[#6E3B00]/30 shadow-xs">
+              <MessageSquarePlus className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FAEBCE] text-[#5E3500] dark:bg-[#3D2D14] dark:text-[#F7C04D] text-[10px] font-black uppercase tracking-wider mb-1">
+                Direct Communication
+              </div>
+              <h3 className="serif text-lg font-black text-[#141310] dark:text-[#FCFBF7]">
+                Help Shape Aapka Saathi • Give Feedback to Developers
+              </h3>
+              <p className="text-xs sm:text-sm text-[#545048] dark:text-[#BCB9AB] font-medium leading-relaxed max-w-2xl mt-1">
+                Have an idea for a regional folk song, an elder comfort feature, larger touch buttons, or noticed an issue? Caregiver observations directly guide every software update we release.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsFeedbackModalOpen(true)}
+              className="px-5 py-2.5 rounded-full bg-white dark:bg-[#252820] border-2 border-[#183C17] dark:border-[#8DA850] text-[#183C17] dark:text-[#8DA850] text-xs font-extrabold hover:bg-[#F3EFE6] dark:hover:bg-[#2B2E24] transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <MessageSquarePlus className="w-4 h-4" />
+              Quick Feedback
+            </button>
+            <button
+              type="button"
+              onClick={() => setCaregiverTab('feedback')}
+              className="px-5 py-2.5 rounded-full bg-[#183C17] hover:bg-[#112B10] text-white text-xs font-black shadow-xs transition-all hover:scale-105 cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Open Feedback Hub</span>
+              <span className="text-[10px] font-mono bg-white/20 px-1.5 py-0.5 rounded-full">
+                {state?.developerFeedback?.length || 0}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Persistent Disclaimer Notice */}
       <div className="rounded-3xl bg-[#FDF3DF] dark:bg-[#3D2D14] border-2 border-[#965A04] p-6 sm:p-8 shadow-xs">

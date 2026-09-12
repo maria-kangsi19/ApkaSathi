@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Home,
   UserCheck,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -25,6 +26,7 @@ export const Header: React.FC = () => {
     state,
     updateSettings,
     setShowDisclaimerModal,
+    setIsFeedbackModalOpen,
   } = useApp();
 
   const isTwilight = state?.settings?.twilightMode ?? false;
@@ -153,6 +155,18 @@ export const Header: React.FC = () => {
             <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
             <span>Notice</span>
           </button>
+
+          {/* Caregiver Developer Feedback Button */}
+          {appMode === 'caregiver' && (
+            <button
+              onClick={() => setIsFeedbackModalOpen(true)}
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-[#252820] hover:bg-[#F3EFE6] dark:hover:bg-[#2B2E24] text-[#183C17] dark:text-[#8DA850] border border-[#183C17]/40 text-xs font-black transition-colors cursor-pointer"
+              title="Give Improvement Feedback to Developers"
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5 shrink-0" />
+              <span>Feedback</span>
+            </button>
+          )}
 
           {/* Role Switching Button */}
           {appMode === 'patient' ? (

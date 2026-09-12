@@ -10,6 +10,7 @@ import {
   Image as ImageIcon,
   Clock,
   Stethoscope,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { useApp, CaregiverTab } from '../../context/AppContext';
 import { CaregiverDashboard } from './CaregiverDashboard';
@@ -21,6 +22,7 @@ import { CaregiverReminders } from './CaregiverReminders';
 import { CaregiverActivityLog } from './CaregiverActivityLog';
 import { CaregiverSupportCircle } from './CaregiverSupportCircle';
 import { CaregiverSettings } from './CaregiverSettings';
+import { CaregiverFeedback } from './CaregiverFeedback';
 
 export const CaregiverHubLayout: React.FC = () => {
   const {
@@ -62,6 +64,11 @@ export const CaregiverHubLayout: React.FC = () => {
     { id: 'activity_log', label: 'Activity Log', icon: <Activity className="w-4 h-4" /> },
     { id: 'support_circle', label: 'Support Circle', icon: <Users className="w-4 h-4" /> },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-4 h-4" /> },
+    {
+      id: 'feedback',
+      label: 'Developer Feedback',
+      icon: <MessageSquarePlus className="w-4 h-4 text-[#965A04] dark:text-[#F5B83D]" />,
+    },
   ];
 
   return (
@@ -122,6 +129,7 @@ export const CaregiverHubLayout: React.FC = () => {
         {caregiverTab === 'settings' && <CaregiverSettings />}
         {caregiverTab === 'media' && <CaregiverMediaHub />}
         {caregiverTab === 'reminders' && <CaregiverReminders />}
+        {caregiverTab === 'feedback' && <CaregiverFeedback />}
       </main>
     </div>
   );

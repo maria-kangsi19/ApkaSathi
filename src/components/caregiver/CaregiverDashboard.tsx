@@ -28,6 +28,7 @@ import {
   Copy,
   Check,
   Ban,
+  MessageSquarePlus,
 } from 'lucide-react';
 import { useApp, CaregiverTab } from '../../context/AppContext';
 import { NORTHEAST_IMAGES } from '../../assets/images';
@@ -695,6 +696,32 @@ export const CaregiverDashboard: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Developer Feedback Banner in Dashboard */}
+      <div className="rounded-[28px] bg-gradient-to-r from-amber-50 to-orange-50 dark:from-[#242119] dark:to-[#2A231A] p-5 sm:p-6 border-2 border-[#DCD4C4] dark:border-[#423927] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-[#FAEBCE] text-[#5E3500] dark:bg-[#3D2D14] dark:text-[#F7C04D] flex items-center justify-center shrink-0 border border-[#6E3B00]/30 shadow-2xs">
+            <MessageSquarePlus className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-black text-[#141310] dark:text-[#FCFBF7]">
+              Have an improvement idea or feature request for the developers?
+            </h4>
+            <p className="text-xs text-[#545048] dark:text-[#BCB9AB] mt-0.5">
+              Suggest regional music, memory prompts, elder comfort adjustments, or report any glitch directly to our engineering team.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+          <button
+            onClick={() => setCaregiverTab('feedback')}
+            className="px-4 py-2 rounded-full bg-[#183C17] hover:bg-[#112B10] text-white text-xs font-black transition-all hover:scale-105 cursor-pointer flex items-center gap-1.5"
+          >
+            <span>Share Feedback</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import { PatientContainer } from './components/patient/PatientContainer';
 import { DoctorContainer } from './components/doctor/DoctorContainer';
 import { PatientMedicineAlarmModal } from './components/patient/PatientMedicineAlarmModal';
 import { PatientSOSModal } from './components/patient/PatientSOSModal';
+import { DeveloperFeedbackModal } from './components/caregiver/DeveloperFeedbackModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { AppErrorFallback } from './components/common/AppErrorFallback';
 import { RefreshCw, Heart, WifiOff, X, ShieldCheck } from 'lucide-react';
@@ -124,6 +125,9 @@ const AppContent: React.FC = () => {
 
       {/* Global Non-Clinical Disclaimer Modal */}
       <DisclaimerModal />
+
+      {/* Global Developer Feedback Modal */}
+      <DeveloperFeedbackModal />
 
       {/* Subtle Persistent Disclaimer & Cultural Footer */}
       <footer className="h-16 px-6 sm:px-12 bg-white/70 dark:bg-[#1D1F1A]/80 backdrop-blur-sm flex flex-col sm:flex-row items-center justify-between border-t-2 border-[#BFB5A2] dark:border-[#4A4F41] gap-2 py-3">
