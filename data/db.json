@@ -264,5 +264,161 @@
     "language": "Nagamese / English",
     "manualTiredMode": true,
     "soundEffects": true
-  }
+  },
+  "medicines": [
+    {
+      "id": "med-1",
+      "patient_id": "pt-1",
+      "name": "Amlodipine (Blood Pressure)",
+      "dosage": "5mg — 1 tablet",
+      "times": [
+        "08:00 AM"
+      ],
+      "notes": "Take with warm water after morning meal",
+      "active": true
+    },
+    {
+      "id": "med-2",
+      "patient_id": "pt-1",
+      "name": "Calcium + Vitamin D3",
+      "dosage": "500mg — 1 tablet",
+      "times": [
+        "01:30 PM"
+      ],
+      "notes": "Take after lunch with lukewarm water",
+      "active": true
+    },
+    {
+      "id": "med-3",
+      "patient_id": "pt-1",
+      "name": "Donepezil (Memory Support)",
+      "dosage": "5mg — 1 tablet",
+      "times": [
+        "08:30 PM"
+      ],
+      "notes": "Take right before bedtime with half glass of water",
+      "active": true
+    }
+  ],
+  "medicineLogs": [
+    {
+      "id": "medlog-1",
+      "medicine_id": "med-1",
+      "scheduled_time": "08:00 AM",
+      "status": "taken",
+      "actioned_at": "2026-09-11T20:00:00.000Z"
+    },
+    {
+      "id": "medlog-2",
+      "medicine_id": "med-1",
+      "scheduled_time": "08:00 AM",
+      "status": "taken",
+      "actioned_at": "2026-09-10T20:00:00.000Z"
+    },
+    {
+      "id": "medlog-3",
+      "medicine_id": "med-1",
+      "scheduled_time": "08:00 AM",
+      "status": "taken",
+      "actioned_at": "2026-09-09T20:00:00.000Z"
+    },
+    {
+      "id": "medlog-4",
+      "medicine_id": "med-2",
+      "scheduled_time": "01:30 PM",
+      "status": "taken",
+      "actioned_at": "2026-09-11T21:00:00.000Z"
+    },
+    {
+      "id": "medlog-5",
+      "medicine_id": "med-3",
+      "scheduled_time": "08:30 PM",
+      "status": "taken",
+      "actioned_at": "2026-09-10T21:30:00.000Z"
+    }
+  ],
+  "sosEvents": [
+    {
+      "id": "sos-prev-1",
+      "patient_id": "pt-1",
+      "triggered_at": "2026-09-10T10:00:00.000Z",
+      "status": "resolved",
+      "resolved_at": "2026-09-10T10:04:00.000Z",
+      "location": "Veranda & Orchid Courtyard, Mokokchung"
+    }
+  ],
+  "conditionCheckIns": [
+    {
+      "id": "chk-1",
+      "patient_id": "pt-1",
+      "timestamp": "2026-09-11T06:30:00.000Z",
+      "condition_score": 84,
+      "engagement_score": 35,
+      "mood": "peaceful",
+      "activity_label": "Morning Awakening & Warm Water",
+      "notes": "Woke up gently to soft birdsong outside. Expressed peaceful comfort.",
+      "logged_by": "Moa Jamir"
+    },
+    {
+      "id": "chk-2",
+      "patient_id": "pt-1",
+      "timestamp": "2026-09-11T08:15:00.000Z",
+      "condition_score": 93,
+      "engagement_score": 82,
+      "mood": "radiant",
+      "activity_label": "Morning Assam Tea & Blood Pressure Medicine",
+      "notes": "Cheerfully took Amlodipine with breakfast. Smiled while talking about the weather.",
+      "logged_by": "Moa Jamir"
+    }
+  ],
+  "doctorAccessGrants": [
+    {
+      "id": "dag-1789194100867-898c",
+      "doctor_id": "doc-1789194100887",
+      "patient_id": "pt-1",
+      "access_code": "7M4K9P",
+      "status": "active",
+      "granted_at": "2026-09-12T06:21:40.867Z",
+      "revoked_at": null,
+      "doctor_name": "Dr. Sentila",
+      "doctor_contact": "+91 98765 43210",
+      "last_viewed_at": "2026-09-12T06:21:40.887Z"
+    },
+    {
+      "id": "dag-1789194057149-9auj",
+      "doctor_id": "doc-test-1",
+      "patient_id": "pt-1",
+      "access_code": "6EXHEU",
+      "status": "revoked",
+      "granted_at": "2026-09-12T06:20:57.149Z",
+      "revoked_at": "2026-09-12T06:21:01.854Z",
+      "doctor_name": "Dr. Moa",
+      "doctor_contact": "+91 99999 88888",
+      "last_viewed_at": "2026-09-12T06:20:59.375Z"
+    },
+    {
+      "id": "grant-seed-1",
+      "doctor_id": "doc-1789194065494",
+      "patient_id": "pt-1",
+      "access_code": "SAATHI",
+      "status": "active",
+      "granted_at": "2026-09-09T12:00:00.000Z",
+      "revoked_at": null,
+      "doctor_name": "Healthcare Provider",
+      "doctor_contact": "",
+      "last_viewed_at": "2026-09-12T06:21:05.494Z"
+    },
+    {
+      "id": "grant-seed-2",
+      "doctor_id": "doc-jamir",
+      "patient_id": "pt-1",
+      "access_code": "DR7842",
+      "status": "active",
+      "granted_at": "2026-09-06T12:00:00.000Z",
+      "revoked_at": null,
+      "doctor_name": "Dr. T. Jamir",
+      "doctor_contact": "+91 94360 55432",
+      "last_viewed_at": "2026-09-12T06:21:08.757Z"
+    }
+  ]
 }

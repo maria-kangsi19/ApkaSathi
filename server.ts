@@ -352,6 +352,96 @@ const INITIAL_SEED_DATA = {
       last_viewed_at: new Date(Date.now() - 3600000 * 18).toISOString(),
     },
   ],
+  conditionCheckIns: [
+    {
+      id: 'chk-1',
+      patient_id: 'pt-1',
+      timestamp: new Date(new Date().setHours(6, 30, 0, 0)).toISOString(),
+      condition_score: 84,
+      engagement_score: 35,
+      mood: 'peaceful',
+      activity_label: 'Morning Awakening & Warm Water',
+      notes: 'Woke up gently to soft birdsong outside. Expressed peaceful comfort.',
+      logged_by: 'Moa Jamir',
+    },
+    {
+      id: 'chk-2',
+      patient_id: 'pt-1',
+      timestamp: new Date(new Date().setHours(8, 15, 0, 0)).toISOString(),
+      condition_score: 93,
+      engagement_score: 82,
+      mood: 'radiant',
+      activity_label: 'Morning Assam Tea & Blood Pressure Medicine',
+      notes: 'Cheerfully took Amlodipine with breakfast. Smiled while talking about the weather.',
+      logged_by: 'Moa Jamir',
+    },
+    {
+      id: 'chk-3',
+      patient_id: 'pt-1',
+      timestamp: new Date(new Date().setHours(9, 45, 0, 0)).toISOString(),
+      condition_score: 95,
+      engagement_score: 94,
+      mood: 'radiant',
+      activity_label: 'Family Photo Album & Voice Clips',
+      notes: 'Recognized Moa and granddaughter Sentila immediately. Reminisced warmly about Ungma village.',
+      logged_by: 'Sentila',
+    },
+    {
+      id: 'chk-4',
+      patient_id: 'pt-1',
+      timestamp: new Date(new Date().setHours(11, 30, 0, 0)).toISOString(),
+      condition_score: 88,
+      engagement_score: 72,
+      mood: 'peaceful',
+      activity_label: 'Veranda Orchid Stroll & Flower Matching',
+      notes: 'Enjoyed looking at the blooming wild orchids. Matched 3 floral memory cards.',
+      logged_by: 'Moa Jamir',
+    },
+    {
+      id: 'chk-5',
+      patient_id: 'pt-1',
+      timestamp: new Date(new Date().setHours(13, 30, 0, 0)).toISOString(),
+      condition_score: 80,
+      engagement_score: 45,
+      mood: 'mild_fatigue',
+      activity_label: 'Warm Midday Stew & Calcium Dose',
+      notes: 'Ate warm rice stew. Showed gentle drowsiness; took midday calcium quietly.',
+      logged_by: 'Aienla',
+    },
+    {
+      id: 'chk-6',
+      patient_id: 'pt-1',
+      timestamp: new Date(new Date().setHours(14, 45, 0, 0)).toISOString(),
+      condition_score: 90,
+      engagement_score: 20,
+      mood: 'peaceful',
+      activity_label: 'Afternoon Rest & Ambient Rain Sounds',
+      notes: 'Deep peaceful resting period on comfortable cane chair with soft wool shawl.',
+      logged_by: 'Moa Jamir',
+    },
+    {
+      id: 'chk-7',
+      patient_id: 'pt-1',
+      timestamp: new Date(new Date().setHours(16, 15, 0, 0)).toISOString(),
+      condition_score: 92,
+      engagement_score: 86,
+      mood: 'radiant',
+      activity_label: 'Church Choir Hymns & Sentila Audio Check-in',
+      notes: 'Hummed happily along to Ao Naga choir recording. Very engaged with Sentila’s voice.',
+      logged_by: 'Sentila',
+    },
+    {
+      id: 'chk-8',
+      patient_id: 'pt-1',
+      timestamp: new Date(new Date().setHours(18, 0, 0, 0)).toISOString(),
+      condition_score: 86,
+      engagement_score: 68,
+      mood: 'peaceful',
+      activity_label: 'Evening Ginger Chai & Shawl Weaving Memories',
+      notes: 'Comfortable relaxed evening session. Looked at family weaving patterns with calm affection.',
+      logged_by: 'Moa Jamir',
+    },
+  ],
 };
 
 // Database helper functions
@@ -366,7 +456,35 @@ async function loadDb() {
       return JSON.parse(JSON.stringify(INITIAL_SEED_DATA));
     }
     const raw = await fs.readFile(DB_FILE, 'utf-8');
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    let dirty = false;
+
+    // Ensure all collections exist
+    if (!Array.isArray(parsed.doctorAccessGrants) || parsed.doctorAccessGrants.length === 0) {
+      parsed.doctorAccessGrants = JSON.parse(JSON.stringify(INITIAL_SEED_DATA.doctorAccessGrants || []));
+      dirty = true;
+    }
+    if (!Array.isArray(parsed.medicines) || parsed.medicines.length === 0) {
+      parsed.medicines = JSON.parse(JSON.stringify(INITIAL_SEED_DATA.medicines || []));
+      dirty = true;
+    }
+    if (!Array.isArray(parsed.medicineLogs) || parsed.medicineLogs.length === 0) {
+      parsed.medicineLogs = JSON.parse(JSON.stringify(INITIAL_SEED_DATA.medicineLogs || []));
+      dirty = true;
+    }
+    if (!Array.isArray(parsed.sosEvents)) {
+      parsed.sosEvents = JSON.parse(JSON.stringify(INITIAL_SEED_DATA.sosEvents || []));
+      dirty = true;
+    }
+    if (!Array.isArray(parsed.conditionCheckIns) || parsed.conditionCheckIns.length === 0) {
+      parsed.conditionCheckIns = JSON.parse(JSON.stringify(INITIAL_SEED_DATA.conditionCheckIns || []));
+      dirty = true;
+    }
+
+    if (dirty) {
+      await saveDb(parsed);
+    }
+    return parsed;
   } catch (err) {
     console.error('Error loading DB, returning in-memory initial data:', err);
     return JSON.parse(JSON.stringify(INITIAL_SEED_DATA));
@@ -982,26 +1100,39 @@ IMPORTANT: Do not use clinical language, scores, percentages, or any language im
   app.post('/api/doctor-grants', async (req, res) => {
     try {
       const db = await loadDb();
-      const codeChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let code = '';
-      for (let i = 0; i < 6; i++) {
-        code += codeChars.charAt(Math.floor(Math.random() * codeChars.length));
+      if (!Array.isArray(db.doctorAccessGrants)) {
+        db.doctorAccessGrants = [];
       }
 
+      let code = req.body?.access_code ? String(req.body.access_code).trim().toUpperCase() : '';
+      if (!code) {
+        const codeChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        for (let i = 0; i < 6; i++) {
+          code += codeChars.charAt(Math.floor(Math.random() * codeChars.length));
+        }
+      }
+
+      const grantId = req.body?.id || `dag-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
       const newGrant = {
-        id: `dag-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        doctor_id: null,
-        patient_id: db.patient?.id || 'pt-1',
+        id: grantId,
+        doctor_id: req.body?.doctor_id || null,
+        patient_id: req.body?.patient_id || db.patient?.id || 'pt-1',
         access_code: code,
         status: 'active',
-        granted_at: new Date().toISOString(),
+        granted_at: req.body?.granted_at || new Date().toISOString(),
         revoked_at: null,
-        doctor_name: null,
-        doctor_contact: null,
+        doctor_name: req.body?.doctor_name || null,
+        doctor_contact: req.body?.doctor_contact || null,
         last_viewed_at: null,
       };
 
-      db.doctorAccessGrants = [newGrant, ...(db.doctorAccessGrants || [])];
+      // Filter out existing grant with identical ID or identical access code
+      db.doctorAccessGrants = [
+        newGrant,
+        ...(db.doctorAccessGrants.filter(
+          (g: any) => g.id !== grantId && (g.access_code || '').toString().trim().toUpperCase() !== code
+        )),
+      ];
       await saveDb(db);
       res.json(newGrant);
     } catch (err: any) {
@@ -1037,12 +1168,19 @@ IMPORTANT: Do not use clinical language, scores, percentages, or any language im
   app.post('/api/doctor/verify-code', async (req, res) => {
     try {
       const { access_code, doctor_id, doctor_name, doctor_contact } = req.body;
-      const cleanCode = (access_code || '').trim().toUpperCase();
+      const cleanCode = (access_code || '').toString().trim().toUpperCase();
+
+      if (!cleanCode) {
+        return res.status(400).json({
+          success: false,
+          error: 'Please enter a valid access code.',
+        });
+      }
 
       const db = await loadDb();
       const grants = db.doctorAccessGrants || [];
       const matchIndex = grants.findIndex(
-        (g: any) => g.access_code?.toUpperCase() === cleanCode
+        (g: any) => (g.access_code || '').toString().trim().toUpperCase() === cleanCode
       );
 
       if (matchIndex === -1) {
@@ -1056,7 +1194,7 @@ IMPORTANT: Do not use clinical language, scores, percentages, or any language im
       if (grant.status === 'revoked') {
         return res.status(403).json({
           success: false,
-          error: "This code isn't valid or has been removed. Please check with the caregiver.",
+          error: "This code has been revoked by the patient's caregiver.",
         });
       }
 

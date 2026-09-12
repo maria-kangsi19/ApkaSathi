@@ -4,9 +4,17 @@ import { DoctorLogin } from './DoctorLogin';
 import { DoctorDashboard } from './DoctorDashboard';
 
 export const DoctorContainer: React.FC = () => {
-  const { activePatientGrant } = useApp();
+  const { activePatientGrant, state } = useApp();
 
-  if (!activePatientGrant || activePatientGrant.status === 'revoked') {
+  const currentGrantInState = (state?.doctorAccessGrants || []).find(
+    g => g.id === activePatientGrant?.id
+  );
+
+  if (
+    !activePatientGrant ||
+    activePatientGrant.status === 'revoked' ||
+    (currentGrantInState && currentGrantInState.status === 'revoked')
+  ) {
     return <DoctorLogin />;
   }
 

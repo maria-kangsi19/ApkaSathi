@@ -209,10 +209,10 @@ export const DoctorLogin: React.FC = () => {
               <div className="relative">
                 <input
                   type="text"
-                  maxLength={6}
+                  maxLength={12}
                   value={accessCode}
-                  onChange={e => setAccessCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. SAATHI or DR7842"
+                  onChange={e => setAccessCode(e.target.value.replace(/\s+/g, '').toUpperCase())}
+                  placeholder="e.g. 6EXHEU or SAATHI"
                   className="w-full px-4 py-3.5 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border-2 border-[#1E4D6B]/50 dark:border-[#93C5FD]/50 text-base sm:text-lg font-mono font-black tracking-widest text-[#1E4D6B] dark:text-[#93C5FD] placeholder:text-neutral-400 focus:outline-none focus:border-[#1E4D6B] dark:focus:border-[#60A5FA] text-center uppercase"
                   required
                 />

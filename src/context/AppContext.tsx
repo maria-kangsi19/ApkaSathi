@@ -343,7 +343,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (res.ok) {
         const data = await res.json();
         if (data && data.patient) {
-          setState(data);
+          setState(prev => ({
+            ...prev,
+            ...data,
+            doctorAccessGrants:
+              data.doctorAccessGrants && data.doctorAccessGrants.length > 0
+                ? data.doctorAccessGrants
+                : (prev?.doctorAccessGrants && prev.doctorAccessGrants.length > 0
+                    ? prev.doctorAccessGrants
+                    : INITIAL_APP_STATE.doctorAccessGrants || []),
+          }));
           setError(null);
         }
       }
@@ -1229,23 +1238,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       last_viewed_at: null,
     };
 
+    // Immediate local state update for instantaneous zero-latency display
     setState(prev => ({
       ...prev,
-      doctorAccessGrants: [newGrant, ...(prev.doctorAccessGrants || [])],
+      doctorAccessGrants: [newGrant, ...(prev.doctorAccessGrants || []).filter(g => g.id !== newGrant.id)],
     }));
 
     try {
       const res = await fetch('/api/doctor-grants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify(newGrant),
       });
       if (res.ok) {
         const serverGrant = await res.json();
         if (serverGrant && serverGrant.id) {
           setState(prev => ({
             ...prev,
-            doctorAccessGrants: [serverGrant, ...(prev.doctorAccessGrants || []).filter(g => g.id !== newGrant.id)],
+            doctorAccessGrants: [
+              serverGrant,
+              ...(prev.doctorAccessGrants || []).filter(
+                g => g.id !== newGrant.id && g.id !== serverGrant.id
+              ),
+            ],
           }));
           return serverGrant;
         }
@@ -1294,7 +1309,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const verifyAndLinkDoctorCode = async (
     accessCode: string
   ): Promise<{ success: boolean; error?: string; grant?: DoctorAccessGrant }> => {
-    const clean = (accessCode || '').trim().toUpperCase();
+    const clean = (accessCode || '').toString().trim().toUpperCase();
     if (!clean) {
       return { success: false, error: 'Please enter an access code.' };
     }
@@ -1325,40 +1340,88 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       } else {
         const errData = await res.json().catch(() => ({}));
+        if (res.status === 403) {
+          return {
+            success: false,
+            error: errData.error || "This code has been revoked by the patient's caregiver.",
+          };
+        }
+
+        // Check local state in case server has not received it yet or was offline
+        const grants = state?.doctorAccessGrants || [];
+        const localMatch = grants.find(
+          g => (g.access_code || '').toString().trim().toUpperCase() === clean
+        );
+        if (localMatch) {
+          if (localMatch.status === 'revoked') {
+            return {
+              success: false,
+              error: "This code has been revoked by the patient's caregiver.",
+            };
+          }
+          const updated: DoctorAccessGrant = {
+            ...localMatch,
+            doctor_id: currentDoctor?.id || localMatch.doctor_id,
+            doctor_name: currentDoctor?.name || localMatch.doctor_name || 'Healthcare Provider',
+            doctor_contact: currentDoctor?.phone_or_email || localMatch.doctor_contact,
+            last_viewed_at: new Date().toISOString(),
+          };
+          setActivePatientGrant(updated);
+          setState(prev => ({
+            ...prev,
+            doctorAccessGrants: (prev.doctorAccessGrants || []).map(g =>
+              g.id === updated.id ? updated : g
+            ),
+          }));
+          fetch('/api/doctor-grants', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updated),
+          }).catch(() => {});
+          return { success: true, grant: updated };
+        }
+
         return {
           success: false,
-          error: errData.error || "This code isn't valid or has been removed. Please check with the caregiver.",
+          error:
+            errData.error ||
+            "This code isn't valid or has been removed. Please check with the caregiver.",
         };
       }
     } catch (e) {
       console.warn('Network error, checking local fallback for access code:', e);
-    }
+      const grants = state?.doctorAccessGrants || [];
+      const found = grants.find(
+        g => (g.access_code || '').toString().trim().toUpperCase() === clean
+      );
+      if (!found || found.status === 'revoked') {
+        return {
+          success: false,
+          error:
+            found?.status === 'revoked'
+              ? "This code has been revoked by the patient's caregiver."
+              : "This code isn't valid or has been removed. Please check with the caregiver.",
+        };
+      }
 
-    // Local fallback check
-    const grants = state?.doctorAccessGrants || [];
-    const found = grants.find(g => g.access_code?.toUpperCase() === clean);
-    if (!found || found.status === 'revoked') {
-      return {
-        success: false,
-        error: "This code isn't valid or has been removed. Please check with the caregiver.",
+      const updated: DoctorAccessGrant = {
+        ...found,
+        doctor_id: currentDoctor?.id || found.doctor_id,
+        doctor_name: currentDoctor?.name || found.doctor_name || 'Healthcare Provider',
+        doctor_contact: currentDoctor?.phone_or_email || found.doctor_contact,
+        last_viewed_at: new Date().toISOString(),
       };
+
+      setState(prev => ({
+        ...prev,
+        doctorAccessGrants: (prev.doctorAccessGrants || []).map(g =>
+          g.id === updated.id ? updated : g
+        ),
+      }));
+
+      setActivePatientGrant(updated);
+      return { success: true, grant: updated };
     }
-
-    const updated: DoctorAccessGrant = {
-      ...found,
-      doctor_id: currentDoctor?.id || found.doctor_id,
-      doctor_name: currentDoctor?.name || found.doctor_name || 'Healthcare Provider',
-      doctor_contact: currentDoctor?.phone_or_email || found.doctor_contact,
-      last_viewed_at: new Date().toISOString(),
-    };
-
-    setState(prev => ({
-      ...prev,
-      doctorAccessGrants: (prev.doctorAccessGrants || []).map(g => (g.id === updated.id ? updated : g)),
-    }));
-
-    setActivePatientGrant(updated);
-    return { success: true, grant: updated };
   };
 
   return (
