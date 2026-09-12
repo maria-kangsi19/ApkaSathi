@@ -23,6 +23,7 @@ import {
   BellRing,
   MapPin,
   ChevronRight,
+  ClipboardList,
 } from 'lucide-react';
 import { useApp, CaregiverTab } from '../../context/AppContext';
 import { NORTHEAST_IMAGES } from '../../assets/images';
@@ -320,6 +321,58 @@ export const CaregiverDashboard: React.FC = () => {
                 className="text-xs font-black text-red-600 dark:text-red-400 flex items-center gap-1 hover:underline cursor-pointer"
               >
                 <span>Open Alert Log</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* SECTION: DOCTOR VISIT SUMMARY */}
+          <div className="bg-white dark:bg-[#1D1F1A] rounded-[32px] p-6 border-2 border-[#DCD4C4] dark:border-[#3C4035] hover:border-[#264D24] transition-all flex flex-col justify-between shadow-xs group">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-[#E0EDE0] text-[#143513] dark:bg-[#263319] dark:text-[#9BB858] flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ClipboardList className="w-6 h-6" />
+                </div>
+                <span className="text-xs font-black text-[#264D24] dark:text-[#9BB858] px-2.5 py-0.5 rounded-full bg-[#E0EDE0] dark:bg-[#263319]">
+                  Export Ready
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-black text-[#141310] dark:text-[#FCFBF7]">
+                  Doctor Visit Summary
+                </h3>
+                <p className="text-xs font-bold text-[#66635A] dark:text-[#8E8D85] mt-1">
+                  Export a summary for your next appointment.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-[#F9F7F1] dark:bg-[#23261F] border border-[#EBE5D8] dark:border-[#32362C] space-y-1.5 text-xs font-bold">
+                <div className="flex items-center justify-between text-[#3D3A33] dark:text-[#D1D0C5]">
+                  <span>Adherence Tracking:</span>
+                  <span className="font-black text-[#264D24] dark:text-[#9BB858]">7 & 30-Day Windows</span>
+                </div>
+                <div className="flex items-center justify-between text-[#3D3A33] dark:text-[#D1D0C5]">
+                  <span>Engagement Narrative:</span>
+                  <span className="font-black text-[#141310] dark:text-[#FCFBF7]">AI Synthesized</span>
+                </div>
+                <div className="flex items-center justify-between text-[#3D3A33] dark:text-[#D1D0C5]">
+                  <span>Export Formats:</span>
+                  <span className="font-black text-[#66635A] dark:text-[#8E8D85]">PDF & Print View</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 pt-4 border-t border-[#EBE5D8] dark:border-[#32362C] flex items-center justify-between gap-2">
+              <span className="text-xs font-bold text-[#66635A] dark:text-[#8E8D85]">
+                Non-clinical context
+              </span>
+
+              <button
+                onClick={() => setCaregiverTab('doctor_summary')}
+                className="text-xs font-black text-[#264D24] dark:text-[#9BB858] flex items-center gap-1 hover:underline cursor-pointer"
+              >
+                <span>Prepare Summary</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>

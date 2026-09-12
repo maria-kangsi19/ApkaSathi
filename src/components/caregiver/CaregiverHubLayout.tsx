@@ -9,11 +9,13 @@ import {
   Eye,
   Image as ImageIcon,
   Clock,
+  ClipboardList,
 } from 'lucide-react';
 import { useApp, CaregiverTab } from '../../context/AppContext';
 import { CaregiverDashboard } from './CaregiverDashboard';
 import { CaregiverMedicineSchedule } from './CaregiverMedicineSchedule';
 import { CaregiverEmergencyLog } from './CaregiverEmergencyLog';
+import { CaregiverDoctorVisitSummary } from './CaregiverDoctorVisitSummary';
 import { CaregiverMediaHub } from './CaregiverMediaHub';
 import { CaregiverReminders } from './CaregiverReminders';
 import { CaregiverActivityLog } from './CaregiverActivityLog';
@@ -51,6 +53,11 @@ export const CaregiverHubLayout: React.FC = () => {
       icon: <AlertTriangle className="w-4 h-4 text-red-600" />,
       badge: activeSOSEvents.length > 0 ? activeSOSEvents.length : undefined,
       badgeColor: 'bg-red-600 text-white animate-pulse',
+    },
+    {
+      id: 'doctor_summary',
+      label: 'Doctor Summary',
+      icon: <ClipboardList className="w-4 h-4 text-[#264D24] dark:text-[#9BB858]" />,
     },
     { id: 'activity_log', label: 'Activity Log', icon: <Activity className="w-4 h-4" /> },
     { id: 'support_circle', label: 'Support Circle', icon: <Users className="w-4 h-4" /> },
@@ -109,6 +116,7 @@ export const CaregiverHubLayout: React.FC = () => {
         {caregiverTab === 'dashboard' && <CaregiverDashboard />}
         {caregiverTab === 'medicines' && <CaregiverMedicineSchedule />}
         {caregiverTab === 'emergency_log' && <CaregiverEmergencyLog />}
+        {caregiverTab === 'doctor_summary' && <CaregiverDoctorVisitSummary />}
         {caregiverTab === 'activity_log' && <CaregiverActivityLog />}
         {caregiverTab === 'support_circle' && <CaregiverSupportCircle />}
         {caregiverTab === 'settings' && <CaregiverSettings />}
