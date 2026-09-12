@@ -644,7 +644,7 @@ export const PatientConditionEngagementVisualizer: React.FC<PatientConditionEnga
               margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               onClick={(state) => {
                 if (state && state.activeTooltipIndex !== undefined) {
-                  setSelectedPointIndex(state.activeTooltipIndex);
+                  setSelectedPointIndex(Number(state.activeTooltipIndex));
                 }
               }}
             >

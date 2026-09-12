@@ -82,6 +82,10 @@ interface AppContextType {
   state: AppState;
   loading: boolean;
   error: string | null;
+  isRetrying: boolean;
+  retryInitialFetch: () => Promise<void>;
+  dismissError: () => void;
+  resetToSafeLocalState: () => void;
   appMode: AppMode;
   setAppMode: (mode: AppMode) => void;
   patientScreen: PatientScreen;
@@ -214,6 +218,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [state, setState] = useState<AppState>(getInitialLocalState);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState<boolean>(false);
   const [appMode, setAppMode] = useState<AppMode>('role_select');
   const [patientScreen, setPatientScreen] = useState<PatientScreen>('home');
   const [caregiverTab, setCaregiverTab] = useState<CaregiverTab>('dashboard');
@@ -338,14 +343,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [state]);
 
   const refreshState = useCallback(async () => {
+    let stateFailed = false;
+    let grantsFailed = false;
+
     try {
-      const res = await fetch('/api/state');
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.patient) {
+      // Execute both fetches in parallel; neither can reject and crash the app
+      const [stateResult, grantsResult] = await Promise.allSettled([
+        fetch('/api/state').then(async res => {
+          if (!res.ok) {
+            throw new Error(`Server returned HTTP ${res.status}`);
+          }
+          return res.json();
+        }),
+        fetch('/api/doctor-grants').then(async res => {
+          if (!res.ok) {
+            throw new Error(`Server returned HTTP ${res.status}`);
+          }
+          return res.json();
+        }),
+      ]);
+
+      // 1. Process /api/state result
+      if (stateResult.status === 'fulfilled') {
+        const data = stateResult.value;
+        if (data && typeof data === 'object' && data.patient) {
           setState(prev => ({
             ...prev,
             ...data,
+            // Ensure essential nested objects are always safe
+            patient: data.patient || prev.patient || INITIAL_APP_STATE.patient,
+            caregiver: data.caregiver || prev.caregiver || INITIAL_APP_STATE.caregiver,
+            settings: data.settings || prev.settings || INITIAL_APP_STATE.settings,
+            medicines:
+              Array.isArray(data.medicines) && data.medicines.length > 0
+                ? data.medicines
+                : (prev.medicines?.length ? prev.medicines : INITIAL_APP_STATE.medicines),
+            medicineLogs:
+              Array.isArray(data.medicineLogs)
+                ? data.medicineLogs
+                : (prev.medicineLogs || INITIAL_APP_STATE.medicineLogs),
+            conditionCheckIns:
+              Array.isArray(data.conditionCheckIns)
+                ? data.conditionCheckIns
+                : (prev.conditionCheckIns || INITIAL_APP_STATE.conditionCheckIns),
             doctorAccessGrants:
               data.doctorAccessGrants && data.doctorAccessGrants.length > 0
                 ? data.doctorAccessGrants
@@ -353,13 +393,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                     ? prev.doctorAccessGrants
                     : INITIAL_APP_STATE.doctorAccessGrants || []),
           }));
-          setError(null);
+        } else {
+          stateFailed = true;
         }
+      } else {
+        stateFailed = true;
+        console.warn('Could not fetch /api/state:', stateResult.reason);
+      }
+
+      // 2. Process /api/doctor-grants result
+      if (grantsResult.status === 'fulfilled') {
+        const grantsData = grantsResult.value;
+        if (Array.isArray(grantsData)) {
+          setState(prev => ({
+            ...prev,
+            doctorAccessGrants:
+              grantsData.length > 0
+                ? grantsData
+                : (prev.doctorAccessGrants && prev.doctorAccessGrants.length > 0
+                    ? prev.doctorAccessGrants
+                    : INITIAL_APP_STATE.doctorAccessGrants || []),
+          }));
+        }
+      } else {
+        grantsFailed = true;
+        console.warn('Could not fetch /api/doctor-grants:', grantsResult.reason);
+      }
+
+      // 3. User-friendly notification state
+      if (stateFailed && grantsFailed) {
+        setError(
+          "We're having trouble connecting to the companion server to sync data. Aapka Saathi is operating safely in offline mode with your saved family memories and scheduled routines."
+        );
+      } else if (stateFailed) {
+        setError(
+          "Could not sync family records with the server. Operating safely with your locally saved companion data."
+        );
+      } else if (grantsFailed) {
+        setError(
+          "Could not sync doctor access records with the server. Local provider codes remain active."
+        );
+      } else {
+        setError(null);
       }
     } catch (err: any) {
-      // Backend not running (e.g. static hosting on Vercel) - smoothly continue with client-side state
-      console.log('App running in local/standalone mode with authentic Northeast dataset.');
+      console.warn('App running in local/standalone mode with authentic Northeast dataset:', err);
+      setError(
+        "A connection issue occurred while syncing with the server. Aapka Saathi is operating in offline mode."
+      );
+    } finally {
+      setLoading(false);
+      setIsRetrying(false);
     }
+  }, []);
+
+  const retryInitialFetch = useCallback(async () => {
+    setIsRetrying(true);
+    await refreshState();
+    setIsRetrying(false);
+  }, [refreshState]);
+
+  const dismissError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const resetToSafeLocalState = useCallback(() => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_APP_STATE));
+    } catch (e) {
+      console.warn('Failed to reset state in localStorage:', e);
+    }
+    setState(INITIAL_APP_STATE);
+    setError(null);
   }, []);
 
   // Speech synthesis helper
@@ -1430,6 +1535,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         state,
         loading,
         error,
+        isRetrying,
+        retryInitialFetch,
+        dismissError,
+        resetToSafeLocalState,
         appMode,
         setAppMode,
         patientScreen,

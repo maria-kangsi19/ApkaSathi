@@ -423,7 +423,7 @@ export const DoctorDashboard: React.FC = () => {
                   <div className="space-y-1 max-w-2xl">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="px-2.5 py-0.5 rounded-full bg-[#E4EFE0] dark:bg-[#242E18] text-[#183C17] dark:text-[#8DA850] text-xs font-black">
-                        {qualitativeTag}
+                        {qualitativeTag.label}
                       </span>
                       <span className="text-xs font-black text-[#141310] dark:text-[#FCFBF7]">
                         {chk.activity_label || 'Routine Observation'}

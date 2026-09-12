@@ -8,10 +8,21 @@ import { PatientContainer } from './components/patient/PatientContainer';
 import { DoctorContainer } from './components/doctor/DoctorContainer';
 import { PatientMedicineAlarmModal } from './components/patient/PatientMedicineAlarmModal';
 import { PatientSOSModal } from './components/patient/PatientSOSModal';
-import { RefreshCw, Heart } from 'lucide-react';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { AppErrorFallback } from './components/common/AppErrorFallback';
+import { RefreshCw, Heart, WifiOff, X, ShieldCheck } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const { appMode, loading, error } = useApp();
+  const {
+    state,
+    appMode,
+    loading,
+    error,
+    isRetrying,
+    retryInitialFetch,
+    dismissError,
+    resetToSafeLocalState,
+  } = useApp();
 
   if (loading) {
     return (
@@ -30,15 +41,71 @@ const AppContent: React.FC = () => {
     );
   }
 
+  // Graceful fallback screen if state could not be loaded at all
+  if (!state || !state.patient) {
+    return (
+      <AppErrorFallback
+        title="Unable to Reach Companion Server"
+        message={
+          error ||
+          "We're having trouble connecting to the companion server to fetch latest patient records. You can retry the connection or continue using your saved local companion data."
+        }
+        errorDetails={error}
+        onRetry={retryInitialFetch}
+        onContinueLocal={resetToSafeLocalState}
+        isRetrying={isRetrying}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg-parchment)] text-[var(--text-main)] transition-colors flex flex-col justify-between">
       <div>
         <Header />
 
+        {/* Friendly, Non-Alarmist Offline / Connection Status Banner */}
         {error && (
-          <div className="max-w-4xl mx-auto px-4 mt-4">
-            <div className="p-4 rounded-2xl bg-amber-100 dark:bg-amber-950/40 border border-amber-300 text-amber-900 dark:text-amber-200 text-xs font-semibold">
-              Notice: {error}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-3">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800/60 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950 dark:text-amber-100">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="p-2 rounded-xl bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 shrink-0">
+                  <WifiOff className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-xs uppercase tracking-wider text-[#784400] dark:text-[#F7C04D]">
+                      Offline Companion Mode
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[11px] text-emerald-800 dark:text-emerald-300 font-semibold bg-emerald-100 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full">
+                      <ShieldCheck className="w-3 h-3" />
+                      Local Data Safe
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-700 dark:text-neutral-300 mt-0.5 font-medium leading-relaxed">
+                    {error}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                <button
+                  onClick={retryInitialFetch}
+                  disabled={isRetrying}
+                  className="px-3 py-1.5 rounded-xl bg-amber-200/80 hover:bg-amber-300 dark:bg-amber-900/60 dark:hover:bg-amber-800 text-amber-950 dark:text-amber-100 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-60"
+                  title="Retry connecting to companion server"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRetrying ? 'animate-spin' : ''}`} />
+                  <span>{isRetrying ? 'Connecting...' : 'Retry Connection'}</span>
+                </button>
+                <button
+                  onClick={dismissError}
+                  className="p-1.5 rounded-xl text-amber-800 hover:text-amber-950 dark:text-amber-300 dark:hover:text-amber-100 hover:bg-amber-200/50 dark:hover:bg-amber-900/40 transition-colors cursor-pointer"
+                  title="Dismiss notification"
+                  aria-label="Dismiss banner"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -75,9 +142,13 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ErrorBoundary>
+      <AppProvider>
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
+      </AppProvider>
+    </ErrorBoundary>
   );
 };
 

@@ -16,6 +16,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { Community } from '../../types';
 
 export const CaregiverSettings: React.FC = () => {
   const {
@@ -184,7 +185,7 @@ export const CaregiverSettings: React.FC = () => {
               </label>
               <select
                 value={patientCommunity}
-                onChange={(e) => setPatientCommunity(e.target.value)}
+                onChange={(e) => setPatientCommunity(e.target.value as Community)}
                 className="w-full px-4 py-2.5 rounded-xl border-2 border-[#DCD4C4] dark:border-[#3C4035] bg-white dark:bg-[#1D1F1A] text-[#141310] dark:text-[#FCFBF7] text-sm focus:border-[#264D24] outline-none cursor-pointer"
               >
                 {communities.map((c, i) => (

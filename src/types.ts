@@ -3,8 +3,10 @@ export type Community = 'Naga' | 'Khasi' | 'Mizo' | 'Assamese' | 'Manipuri' | 'T
 export interface CaregiverUser {
   id: string;
   name: string;
-  phone_number: string;
-  relationship_to_patient: string;
+  phone_number?: string;
+  phone?: string;
+  relationship_to_patient?: string;
+  relationship?: string;
 }
 
 export interface PatientProfile {
@@ -55,7 +57,7 @@ export interface Reminder {
   completed_at?: string;
 }
 
-export type SupportRole = 'family' | 'community health worker' | 'neighbor' | 'doctor' | 'other';
+export type SupportRole = 'family' | 'community health worker' | 'neighbor' | 'doctor' | 'asha_worker' | 'other';
 
 export interface SupportContact {
   id: string;
@@ -101,6 +103,7 @@ export interface Medicine {
   dosage: string;
   times: string[];
   notes?: string;
+  instructions?: string;
   active: boolean;
 }
 
@@ -112,6 +115,8 @@ export interface MedicineLog {
   scheduled_time: string;
   status: MedicineLogStatus;
   actioned_at?: string | null;
+  created_at?: string;
+  timestamp?: string;
 }
 
 export type SOSEventStatus = 'active' | 'resolved';
